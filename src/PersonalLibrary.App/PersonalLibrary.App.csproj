@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><AssemblyName>PersonalLibrary</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../PersonalLibrary.Infrastructure/PersonalLibrary.Infrastructure.csproj" /></ItemGroup>
+</Project>

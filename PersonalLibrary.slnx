@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PersonalLibrary.Core/PersonalLibrary.Core.csproj" />
+    <Project Path="src/PersonalLibrary.Infrastructure/PersonalLibrary.Infrastructure.csproj" />
+    <Project Path="src/PersonalLibrary.App/PersonalLibrary.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PersonalLibrary.Checks/PersonalLibrary.Checks.csproj" />
+  </Folder>
+</Solution>
