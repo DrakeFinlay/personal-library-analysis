@@ -8,6 +8,7 @@ $candidates = @(
     $env:PERSONAL_LIBRARY_DOTNET,
     (Join-Path $projectRoot '.tools/dotnet/dotnet.exe'),
     (Join-Path (Split-Path -Parent $projectRoot) 'anki-stats/.tools/dotnet/dotnet.exe'),
+    (Join-Path (Split-Path -Parent $projectRoot) '.old/anki-stats/.tools/dotnet/dotnet.exe'),
     'dotnet'
 )
 $script:LibraryDotnet = $null

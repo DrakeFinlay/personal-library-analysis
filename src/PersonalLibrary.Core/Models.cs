@@ -1,8 +1,13 @@
 namespace PersonalLibrary.Core;
 
-public enum ReadingStatus { ToRead, CurrentlyReading, Read, PartiallyRead, DidNotFinish, ReferenceOnly }
-public enum ReadingOutcome { InProgress, Completed, PartiallyRead, DidNotFinish }
+public enum ReadingStatus { ToRead, CurrentlyReading, Read, PartiallyRead, DidNotFinish, ReferenceOnly, Unclassified }
+public enum ReadingOutcome { InProgress, Completed, PartiallyRead, DidNotFinish, Superseded }
 public enum ProgressUnit { Page, Percent }
+
+public sealed record ReadingSection(Guid Id, string Name)
+{
+    public const string UnassignedName = "Other books";
+}
 
 public sealed class Edition
 {
@@ -10,10 +15,13 @@ public sealed class Edition
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Label { get; set; } = "Default edition";
     public string Isbn { get; set; } = "";
+    // Null allows a source to fill the field. An empty string records a cleared value.
+    public string? Publisher { get; set; }
     public string Language { get; set; } = "English";
     public int? PublicationYear { get; set; }
     public int? PageCount { get; set; }
     public string? CoverFile { get; set; }
+    public string? OpenLibraryEditionId { get; set; }
     public List<string> Holdings { get; set; } = [];
 }
 
@@ -40,6 +48,7 @@ public sealed class Book
     public string Title { get; set; } = "";
     public string Author { get; set; } = "";
     public int? OriginalYear { get; set; }
+    public string? OpenLibraryWorkId { get; set; }
     public ReadingStatus Status { get; set; } = ReadingStatus.ToRead;
     public List<string> Shelves { get; set; } = [];
     public List<Edition> Editions { get; set; } = [new()];
@@ -48,8 +57,11 @@ public sealed class Book
     public int? Rating { get; set; }
     public string Review { get; set; } = "";
     public string Notes { get; set; } = "";
+    public CalibreReference? Calibre { get; set; }
+    public GoodreadsReference? Goodreads { get; set; }
     public bool Excluded { get; set; }
     public bool ReadNext { get; set; }
+    public Guid? ReadingSectionId { get; set; }
     public int SortOrder { get; set; }
     public DateTimeOffset ToReadAddedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
@@ -62,14 +74,41 @@ public static class ReadingRules
     public static string OutcomeLabel(ReadingOutcome outcome) => outcome switch
     {
         ReadingOutcome.InProgress => "In progress", ReadingOutcome.Completed => "Completed",
-        ReadingOutcome.DidNotFinish => "Did not finish", _ => "Partially read"
+        ReadingOutcome.DidNotFinish => "Did not finish", ReadingOutcome.Superseded => "Superseded by Goodreads import",
+        _ => "Partially read"
     };
     public static string Label(ReadingStatus status) => status switch
     {
         ReadingStatus.ToRead => "To read", ReadingStatus.CurrentlyReading => "Currently reading",
         ReadingStatus.Read => "Read", ReadingStatus.PartiallyRead => "Partially read",
-        ReadingStatus.DidNotFinish => "Did not finish", _ => "Reference only"
+        ReadingStatus.DidNotFinish => "Did not finish", ReadingStatus.Unclassified => "Unclassified",
+        _ => "Reference only"
     };
+
+    public static void Classify(Book book, ReadingStatus status)
+    {
+        if (!Enum.IsDefined(status)) throw new InvalidOperationException("Choose a reading status.");
+        if (book.Status == status) return;
+        if (book.ActiveReading != null)
+            throw new InvalidOperationException($"Finish or abandon the active reading of “{book.Title}” before changing its status.");
+        if (status == ReadingStatus.CurrentlyReading)
+        {
+            Start(book, null);
+            return;
+        }
+        ReadingOutcome? outcome = status switch
+        {
+            ReadingStatus.Read => ReadingOutcome.Completed,
+            ReadingStatus.PartiallyRead => ReadingOutcome.PartiallyRead,
+            ReadingStatus.DidNotFinish => ReadingOutcome.DidNotFinish,
+            _ => null
+        };
+        if (outcome is { } value && book.Readings.All(reading => reading.Outcome != value))
+            book.Readings.Add(new Reading { EditionId = book.SelectedEdition.Id, Outcome = value });
+        book.Status = status;
+        if (status == ReadingStatus.ToRead) book.ToReadAddedAt = DateTimeOffset.Now;
+        else book.ReadNext = false;
+    }
 
     public static void Validate(Book book)
     {
@@ -131,7 +170,8 @@ public static class ReadingRules
 
     public static void Finish(Book book, DateOnly? date, ReadingOutcome outcome)
     {
-        if (!Enum.IsDefined(outcome) || outcome == ReadingOutcome.InProgress) throw new InvalidOperationException("Choose a finished outcome.");
+        if (outcome is not (ReadingOutcome.Completed or ReadingOutcome.PartiallyRead or ReadingOutcome.DidNotFinish))
+            throw new InvalidOperationException("Choose a finished outcome.");
         var reading = book.ActiveReading ?? throw new InvalidOperationException("There is no active reading to finish.");
         if (date.HasValue && reading.Started.HasValue && date < reading.Started)
             throw new InvalidOperationException("Finish date cannot precede start date.");
@@ -148,7 +188,7 @@ public static class ReadingRules
     {
         var reading = book.ActiveReading;
         var progress = reading?.Progress.LastOrDefault();
-        if (progress == null) return "Ready for the next chapter";
+        if (progress == null) return "No progress logged yet";
         var pages = book.Editions.Single(e => e.Id == reading!.EditionId).PageCount;
         return progress.Unit == ProgressUnit.Percent ? $"{progress.Value:0.#}% complete" :
             pages.HasValue ? $"Page {progress.Value:0} of {pages} · {progress.Value / pages.Value * 100:0}%" : $"Page {progress.Value:0}";

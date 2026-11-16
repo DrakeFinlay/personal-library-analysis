@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,10 +14,11 @@ internal sealed class BookEditor : Window
     private readonly LibraryStore store;
     private readonly Book book;
     private readonly TextBox title, author, year, shelves, rating, review, notes, bibliography;
-    private readonly TextBox editionLabel, isbn, language, editionYear, pages;
+    private readonly TextBox editionLabel, isbn, publisher, language, editionYear, pages;
     private readonly CheckBox physical, ebook, audio, readNext, excluded;
     private readonly ComboBox editionPicker;
     private readonly StackPanel readingPanel = new();
+    private readonly Dictionary<Guid, byte[]> pendingCovers = [];
     private Edition editingEdition;
     private BibliographyText originalBibliography;
     private bool switchingEdition;
@@ -38,6 +40,9 @@ internal sealed class BookEditor : Window
         bottom.Children.Add(Ui.Button("Cancel / close", Close)); DockPanel.SetDock(bottom, Dock.Bottom); root.Children.Add(bottom);
         var tabs = new TabControl(); root.Children.Add(tabs); Content = root;
         var metadata = new StackPanel { Margin = new Thickness(10) };
+        var download = Ui.Button("Find metadata or a cover…", DownloadMetadata);
+        download.HorizontalAlignment = HorizontalAlignment.Left;
+        metadata.Children.Add(download);
         title = Ui.Input(metadata, "Title", book.Title); author = Ui.Input(metadata, "Author / contributors", book.Author);
         year = Ui.Input(metadata, "Original publication year (negative for BCE; blank if unknown)", book.OriginalYear?.ToString() ?? "");
         shelves = Ui.Input(metadata, "Shelves (comma separated)", string.Join(", ", book.Shelves));
@@ -54,6 +59,7 @@ internal sealed class BookEditor : Window
         }));
         editionLabel = Ui.Input(metadata, "Edition label", editingEdition.Label);
         isbn = Ui.Input(metadata, "ISBN (optional)", editingEdition.Isbn);
+        publisher = Ui.Input(metadata, "Publisher (optional)", editingEdition.Publisher ?? "");
         language = Ui.Input(metadata, "Language", editingEdition.Language);
         editionYear = Ui.Input(metadata, "Edition publication year", editingEdition.PublicationYear?.ToString() ?? "");
         pages = Ui.Input(metadata, "Page count", editingEdition.PageCount?.ToString() ?? "");
@@ -62,7 +68,13 @@ internal sealed class BookEditor : Window
         metadata.Children.Add(Ui.Button("Choose cover image…", () =>
         {
             var dialog = new OpenFileDialog { Filter = "Cover image|*.png;*.jpg;*.jpeg;*.bmp" };
-            if (dialog.ShowDialog(this) == true) { editingEdition.CoverFile = store.ImportCover(dialog.FileName); changed = true; MessageBox.Show(this, "Cover copied into this local profile.", "Cover selected"); }
+            if (dialog.ShowDialog(this) == true)
+            {
+                editingEdition.CoverFile = store.ImportCover(dialog.FileName);
+                pendingCovers.Remove(editingEdition.Id);
+                changed = true;
+                MessageBox.Show(this, "Cover copied into this local profile.", "Cover selected");
+            }
         }));
         metadata.Children.Add(Ui.Text("The selected edition is used for the next reading. Existing readings keep their edition.", 12, "MutedBrush"));
         AddTab(tabs, "Book & editions", metadata); LoadEdition();
@@ -72,10 +84,44 @@ internal sealed class BookEditor : Window
         review = Ui.Input(writing, "Review", book.Review, true); notes = Ui.Input(writing, "Private notes", book.Notes, true);
         AddTab(tabs, "Review & notes", writing);
         var references = new StackPanel { Margin = new Thickness(10) };
-        references.Children.Add(Ui.Text("Paste a bibliography as plain text or Markdown. Saving retains the initial paste and later revisions. Reference matching comes in Stage B.", 13, "MutedBrush"));
-        bibliography = Ui.Input(references, "Bibliography Markdown", originalBibliography.Text, true); bibliography.MinHeight = 400;
+        var savedCitations = store.ReadEpubBibliography(book.Id);
+        var citationActions = new WrapPanel();
+        var extracted = new StackPanel();
+        void RenderExtracted()
+        {
+            extracted.Children.Clear();
+            if (savedCitations == null) return;
+            var preview = Ui.Input(extracted, $"Bibliography Markdown · {savedCitations.Entries.Length} extracted citations",
+                savedCitations.ToMarkdown(), true);
+            preview.IsReadOnly = true;
+            preview.Height = 340;
+        }
+        var browse = Ui.Button("Browse EPUB citations", () =>
+        {
+            if (savedCitations != null) new EpubBibliographyWindow(store, book, savedCitations) { Owner = this }.ShowDialog();
+        });
+        browse.IsEnabled = savedCitations != null;
+        citationActions.Children.Add(browse);
+        if (book.Calibre is { } epubSource && epubSource.Metadata.Files.FirstOrDefault(file => file.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase)) is { } epubFile)
+        {
+            citationActions.Children.Add(Ui.Button("Extract bibliography from EPUB", () =>
+            {
+                var path = CalibreImporter.ResolvePath(epubSource.LibraryFolder, epubFile.RelativePath);
+                if (!File.Exists(path)) throw new IOException("The EPUB is unavailable. Refresh the Calibre connection.");
+                var citations = EpubBibliographyReader.Read(path!);
+                store.SaveEpubBibliography(book.Id, citations);
+                savedCitations = citations;
+                browse.IsEnabled = true;
+                RenderExtracted();
+            }));
+        }
+        references.Children.Add(citationActions);
+        references.Children.Add(extracted);
+        RenderExtracted();
+        bibliography = Ui.Input(references, "Personal bibliography Markdown", originalBibliography.Text, true);
         references.Children.Add(Ui.Text(store.BibliographyPath(book.Id), 12, "MutedBrush"));
         AddTab(tabs, "Bibliography", references);
+        if (book.Calibre is { } calibre) AddTab(tabs, "Calibre", CalibreDetails(calibre));
         editionPicker.SelectionChanged += (_, _) =>
         {
             if (switchingEdition || editionPicker.SelectedItem is not Edition selected) return;
@@ -97,6 +143,80 @@ internal sealed class BookEditor : Window
     }
 
     private static void AddTab(TabControl tabs, string title, UIElement content) => tabs.Items.Add(new TabItem { Header = title, Content = Ui.Scroll(content) });
+
+    private void DownloadMetadata()
+    {
+        var seedIsbn = isbn.Text.Trim();
+        var seedTitle = title.Text.Trim();
+        if (seedIsbn.Length == 0 && OpenLibraryLookup.NormalizeIsbn(seedTitle) is { } titleIsbn)
+        {
+            seedIsbn = titleIsbn;
+            seedTitle = "";
+        }
+        var lookup = new MetadataLookupWindow(seedTitle, author.Text.Trim(), seedIsbn, editBook: true,
+            hasCover: store.CoverPath(editingEdition) != null || pendingCovers.ContainsKey(editingEdition.Id), store: store) { Owner = this };
+        if (lookup.ShowDialog() != true || lookup.SelectedMatch is not { } match) return;
+        if (lookup.CoverOnly && lookup.SelectedCover is { } cover)
+        {
+            pendingCovers[editingEdition.Id] = cover;
+            changed = true;
+            return;
+        }
+        ApplyMetadata(match, lookup.SelectedEdition, lookup.SelectedCover);
+    }
+
+    public void ApplyMetadata(MetadataMatch match, EditionMetadata? edition, byte[]? cover)
+    {
+        title.Text = match.Title;
+        Title = match.Title;
+        if (match.Author.Length > 0) author.Text = match.Author;
+        if (match.OriginalYear is { } originalYear) year.Text = originalYear.ToString();
+        if (match.WorkId != null) book.OpenLibraryWorkId = match.WorkId;
+        if (edition != null)
+        {
+            if (edition.Isbn.Length > 0) isbn.Text = edition.Isbn;
+            if (!string.IsNullOrWhiteSpace(edition.Publisher)) publisher.Text = edition.Publisher.Trim();
+            if (edition.Year is { } published) editionYear.Text = published.ToString();
+            if (edition.Pages is { } count) pages.Text = count.ToString();
+            editingEdition.OpenLibraryEditionId = match.EditionId;
+        }
+        if (cover != null) pendingCovers[editingEdition.Id] = cover;
+        changed = true;
+    }
+
+    private static UIElement CalibreDetails(CalibreReference source)
+    {
+        var panel = new StackPanel { Margin = new Thickness(10) };
+        var metadata = source.Metadata;
+        panel.Children.Add(Ui.Heading("From Calibre", 23));
+        if (metadata.Publisher.Length > 0) panel.Children.Add(Ui.Text("Publisher · " + metadata.Publisher));
+        if (metadata.Series.Length > 0)
+            panel.Children.Add(Ui.Text($"Series · {metadata.Series}{(metadata.SeriesIndex is { } index ? $" #{index:g}" : "")}"));
+        if (metadata.Tags.Length > 0) panel.Children.Add(Ui.Text("Calibre tags · " + string.Join(", ", metadata.Tags)));
+        if (metadata.Identifiers.Length > 0) panel.Children.Add(Ui.Text(string.Join("\n", metadata.Identifiers)));
+        panel.Children.Add(Ui.Heading("Ebook files", 20));
+        foreach (var file in metadata.Files)
+        {
+            var path = CalibreImporter.ResolvePath(source.LibraryFolder, file.RelativePath);
+            if (File.Exists(path))
+            {
+                var canOpen = Path.GetExtension(path).ToLowerInvariant() is ".epub" or ".pdf" or ".mobi" or ".azw3" or ".azw" or ".djvu";
+                panel.Children.Add(Ui.Button(canOpen ? $"Open {file.Format}" : $"Show {file.Format} folder", () =>
+                {
+                    if (!File.Exists(path)) throw new IOException("This ebook moved or is unavailable. Refresh the Calibre connection.");
+                    Process.Start(new ProcessStartInfo(canOpen ? path! : Path.GetDirectoryName(path)!) { UseShellExecute = true });
+                }));
+            }
+            else panel.Children.Add(Ui.Text($"{file.Format} file unavailable. Refresh the Calibre connection after it is restored.", 13, "MutedBrush"));
+        }
+        if (metadata.Files.Length == 0) panel.Children.Add(Ui.Text("Calibre lists no ebook files for this record.", 13, "MutedBrush"));
+        if (metadata.Description.Length > 0)
+        {
+            panel.Children.Add(Ui.Heading("Description", 20));
+            panel.Children.Add(Ui.Text(metadata.Description));
+        }
+        return panel;
+    }
     private static int? OptionalInt(string input, string label)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
@@ -118,6 +238,8 @@ internal sealed class BookEditor : Window
         if (pageCount is <= 0 || publication == 0) throw new InvalidOperationException("Page count must be positive; edition year cannot be zero.");
         editingEdition.Label = string.IsNullOrWhiteSpace(editionLabel.Text) ? "Default edition" : editionLabel.Text.Trim();
         editingEdition.Isbn = isbn.Text.Trim(); editingEdition.Language = language.Text.Trim();
+        var publisherName = publisher.Text.Trim();
+        if (publisherName.Length > 0 || editingEdition.Publisher != null) editingEdition.Publisher = publisherName;
         editingEdition.PageCount = pageCount; editingEdition.PublicationYear = publication;
         editingEdition.Holdings = [];
         if (physical.IsChecked == true) editingEdition.Holdings.Add("Physical");
@@ -129,6 +251,7 @@ internal sealed class BookEditor : Window
     private void LoadEdition()
     {
         editionLabel.Text = editingEdition.Label; isbn.Text = editingEdition.Isbn; language.Text = editingEdition.Language;
+        publisher.Text = editingEdition.Publisher ?? "";
         editionYear.Text = editingEdition.PublicationYear?.ToString() ?? ""; pages.Text = editingEdition.PageCount?.ToString() ?? "";
         physical.IsChecked = editingEdition.Holdings.Contains("Physical"); ebook.IsChecked = editingEdition.Holdings.Contains("Ebook"); audio.IsChecked = editingEdition.Holdings.Contains("Audiobook");
     }
@@ -151,7 +274,11 @@ internal sealed class BookEditor : Window
         CaptureMetadata();
         if (bibliography.Text != originalBibliography.Text && store.Bibliography(book.Id).Hash != originalBibliography.Hash)
             throw new InvalidOperationException("The bibliography changed outside this editor. Copy your draft and reopen the book before saving. No book changes were saved.");
+        ReadingRules.Validate(book);
+        foreach (var edition in book.Editions)
+            if (pendingCovers.TryGetValue(edition.Id, out var cover)) edition.CoverFile = store.ImportJpegCover(cover);
         store.Save(book);
+        pendingCovers.Clear();
         if (bibliography.Text != originalBibliography.Text) originalBibliography = store.SaveBibliography(book.Id, bibliography.Text, originalBibliography.Hash);
         changed = false; Title = book.Title;
     }
@@ -170,21 +297,24 @@ internal sealed class BookEditor : Window
     {
         readingDates.Clear(); readingPanel.Children.Clear(); readingPanel.Margin = new Thickness(10);
         readingPanel.Children.Add(Ui.Heading(ReadingRules.Label(book.Status), 25));
-        readingPanel.Children.Add(Ui.Text("Reading actions save immediately. Blank dates remain undated; rereads create a separate reading record.", 13, "MutedBrush"));
+        readingPanel.Children.Add(Ui.Text("Reading actions save immediately. You can start now and log progress later. Blank dates remain undated.", 13, "MutedBrush"));
         var date = Ui.Input(readingPanel, "Action date (YYYY-MM-DD; blank for unknown)", DateTime.Today.ToString("yyyy-MM-dd"));
         var actions = new WrapPanel();
         if (book.ActiveReading == null)
         {
             actions.Children.Add(Ui.Button(book.Readings.Count > 0 ? "Start / reread" : "Start reading", () => ReadingAction(b => ReadingRules.Start(b, OptionalDate(date.Text))), true));
             actions.Children.Add(Ui.Button("Record completed reading", () => ReadingAction(b => { var completed = OptionalDate(date.Text); ReadingRules.Start(b, null); ReadingRules.Finish(b, completed, ReadingOutcome.Completed); })));
-            actions.Children.Add(Ui.Button("Mark to read", () => ReadingAction(b => { if (b.Status != ReadingStatus.ToRead) b.ToReadAddedAt = DateTimeOffset.Now; b.Status = ReadingStatus.ToRead; })));
-            actions.Children.Add(Ui.Button("Reference only", () => ReadingAction(b => { b.Status = ReadingStatus.ReferenceOnly; b.ReadNext = false; })));
+            actions.Children.Add(Ui.Button("Mark to read", () => ReadingAction(b => ReadingRules.Classify(b, ReadingStatus.ToRead))));
+            actions.Children.Add(Ui.Button("Reference only", () => ReadingAction(b => ReadingRules.Classify(b, ReadingStatus.ReferenceOnly))));
+            if (book.Status != ReadingStatus.Unclassified)
+                actions.Children.Add(Ui.Button("Mark unclassified", () => ReadingAction(b => ReadingRules.Classify(b, ReadingStatus.Unclassified))));
         }
         else
         {
             readingPanel.Children.Add(Ui.Text(ReadingRules.ProgressText(book), 17));
-            var value = Ui.Input(readingPanel, "Progress value", "");
-            var unit = new ComboBox { ItemsSource = new[] { "Page", "Percent" }, SelectedIndex = 0 }; readingPanel.Children.Add(unit);
+            var last = book.ActiveReading.Progress.LastOrDefault();
+            var value = Ui.Input(readingPanel, "Progress (optional until you save an update)", (last?.Value ?? 0).ToString(CultureInfo.CurrentCulture));
+            var unit = new ComboBox { ItemsSource = new[] { "Page", "Percent" }, SelectedIndex = last?.Unit == ProgressUnit.Percent ? 1 : 0 }; readingPanel.Children.Add(unit);
             readingPanel.Children.Add(Ui.Button("Save progress", () =>
             {
                 if (!decimal.TryParse(value.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var amount)) throw new InvalidOperationException("Enter a page number or percentage.");

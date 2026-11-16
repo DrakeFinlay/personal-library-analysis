@@ -18,6 +18,7 @@ models/
 backups/
 imports/
 exports/
+goodreads_library_export*.csv
 *.db
 *.db-shm
 *.db-wal

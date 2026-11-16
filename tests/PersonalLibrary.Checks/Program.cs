@@ -23,6 +23,8 @@ try
 {
     var book = NewBook("Synthetic coastal history");
     ReadingRules.Start(book, new DateOnly(2025, 12, 20));
+    Check(book.Status == ReadingStatus.CurrentlyReading && book.ActiveReading?.Progress.Count == 0,
+        "Starting a reading requires no progress and creates no progress entry");
     ReadingRules.Progress(book, 100, ProgressUnit.Page);
     Check(book.ActiveReading!.Progress.Count == 1 && ReadingRules.ProgressText(book).Contains("25%"), "Page progress converts using reading edition");
     Reject(() => ReadingRules.Progress(book, 401, ProgressUnit.Page), "Out-of-range page rejected");
@@ -104,6 +106,12 @@ try
         Reject(() => SyntheticLibrary.Seed(demo), "Seed cannot overwrite a populated profile");
         Check(demo.Setting("synthetic", "false") == "true", "Synthetic profile stays explicitly marked");
     }
+    ReadingSectionChecks.Run(workspace, Check, Reject);
+    CalibreChecks.Run(workspace, Check);
+    BibliographyChecks.Run(workspace, Check);
+    GoodreadsChecks.Run(workspace, Check);
+    LibraryCleanupChecks.Run(workspace, Check);
+    await MetadataChecks.Run(Check);
     Console.WriteLine($"{passed} checks passed. Synthetic artifacts: {workspace}");
 }
 catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; }

@@ -38,6 +38,13 @@ internal static class Ui
         catch (Exception ex) { MessageBox.Show(ex.Message, "Personal Library", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     public static ScrollViewer Scroll(UIElement content) => new() { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    public static DataTemplate WrappedLabel(string property)
+    {
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(property));
+        text.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+        return new DataTemplate { VisualTree = text };
+    }
     public static Border Card(UIElement content)
     {
         var card = new Border { Child = content, Padding = new Thickness(22), Margin = new Thickness(0, 0, 16, 16), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1) };
@@ -51,24 +58,45 @@ internal static class Ui
         System.Windows.Automation.AutomationProperties.SetName(input, label);
         panel.Children.Add(input); return input;
     }
-    public static FrameworkElement Cover(Book book, LibraryStore store, double width = 88, double height = 130)
+    public static FrameworkElement Cover(Book book, LibraryStore store, double width, double height)
     {
-        var path = store.CoverPath(book.SelectedEdition);
-        if (path != null)
+        foreach (var edition in book.Editions.OrderByDescending(edition => edition.Id == book.SelectedEdition.Id))
         {
+            if (store.CoverPath(edition) is not { } path) continue;
             try
             {
                 var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.DecodePixelHeight = (int)Math.Ceiling(height * 2);
                 bitmap.UriSource = new Uri(path); bitmap.EndInit(); bitmap.Freeze();
-                return new Image { Source = bitmap, Width = width, Height = height, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 20, 0) };
+                if (bitmap.PixelWidth <= 1 || bitmap.PixelHeight <= 1) continue;
+                return new Image { Source = bitmap, Width = width, Height = height, Stretch = Stretch.Uniform,
+                    ToolTip = edition.Id == book.SelectedEdition.Id ? null : $"Cover from {edition.Label}" };
             }
             catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException) { }
         }
         string[] colors = ["#49736B", "#6D657F", "#936347", "#546F87", "#7A7549"];
         var color = colors[(int)((uint)book.Id.GetHashCode() % colors.Length)];
-        var panel = new StackPanel { Margin = new Thickness(9, 14, 9, 4) };
-        panel.Children.Add(new TextBlock { Text = "PERSONAL LIBRARY", Foreground = Brushes.White, FontSize = 8, Opacity = .75 });
-        panel.Children.Add(new TextBlock { Text = book.Title, Foreground = Brushes.White, FontFamily = new FontFamily("Georgia"), FontSize = 14, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0), MaxHeight = height - 55, TextTrimming = TextTrimming.CharacterEllipsis });
-        return new Border { Width = width, Height = height, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)), Child = panel, Margin = new Thickness(0, 0, 20, 0), CornerRadius = new CornerRadius(2) };
+        var cover = new Border
+        {
+            Width = width, Height = height, ClipToBounds = true, CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color))
+        };
+        if (width < 70)
+        {
+            cover.Child = new TextBlock
+            {
+                Text = System.Globalization.StringInfo.GetNextTextElement(book.Title.TrimStart()).ToUpperInvariant(),
+                Foreground = Brushes.White, FontFamily = new FontFamily("Georgia"), FontSize = width * .45,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+        else
+        {
+            var panel = new StackPanel { Margin = new Thickness(9, 14, 9, 4) };
+            panel.Children.Add(new TextBlock { Text = "PERSONAL LIBRARY", Foreground = Brushes.White, FontSize = 8, Opacity = .75 });
+            panel.Children.Add(new TextBlock { Text = book.Title, Foreground = Brushes.White, FontFamily = new FontFamily("Georgia"), FontSize = 14, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0), MaxHeight = height - 55, TextTrimming = TextTrimming.CharacterEllipsis });
+            cover.Child = panel;
+        }
+        return cover;
     }
 }

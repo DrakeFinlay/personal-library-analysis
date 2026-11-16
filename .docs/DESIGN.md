@@ -36,7 +36,7 @@ November 3, 2026; proposed defaults are adopted unless subsequently revised.
 | Resources | Up to 200GB is acceptable as long as that is valuable. Ideal is under 100GB of local storage used. |
 | Hardware | User-reported 32 GB DDR5 RAM and RTX 4070; CPU and exact available VRAM not measured. |
 | Appearance | Light mode primary; Goodreads-like warm off-white initially; dark mode also supported. |
-| Imports | Goodreads CSV, read-only Calibre integration, online lookup, and complete manual entry. |
+| Imports | Goodreads CSV, Calibre refresh with a separate confirmed removal action, online lookup, and complete manual entry. |
 | Initial content | Written books. Manga/comics retained from imports only as excluded records. |
 | Bibliographies | Persistent editable Markdown, source copies, matched references, and linked citation lists. |
 | Recommendations | Owned unread books first; outside discovery later; adjustable bibliography influence. |
@@ -59,11 +59,17 @@ edition's cover, title, author, page/percentage progress, and quick update contr
 Starting, finishing, or abandoning a reading is available from the card/details.
 Use a responsive arrangement rather than reproducing Goodreads' narrow left rail.
 
+Currently Reading offers editable, ordered sections on Home. Daily Reads is
+available by default. Books without a section appear under Other books when
+custom sections are in use. Move books from their cards and reorder them within
+each section. Section membership is a personal preference on the book and
+persists across rereads. Removing a section returns its books to Other books.
+
 Smaller sections contain:
 
 - Annual book challenge: goal, completed count, and progress.
-- Read next: a deliberately maintained short queue.
-- Recently added to to-read: the last ten books added to that shelf, newest first.
+- Read next: a deliberately maintained short queue with cover thumbnails.
+- Recently added to to-read: cover thumbnails for the last ten books added to that shelf, newest first.
 
 Proposed defaults: allow manual order for currently-reading and read-next books;
 starting a queued book removes it from read next. The recent-to-read section uses
@@ -74,9 +80,11 @@ import time; do not present that fallback as a historical fact.
 
 ### My Books and book details
 
-Begin with a functional searchable list and shelf/status filters. A polished
-sortable table, cover grid, and Cover Flow are later work. The first list still
-supports finding, selecting, and editing a book.
+Stage A includes a list with cover thumbnails and a grid with larger covers.
+Both views share search, visible reading-status toggles, a separate shelf filter,
+and access to the book editor. Clicking a cover in bulk edit toggles its selection.
+Show the selected edition's cover where available and a placeholder otherwise.
+A sortable table and Cover Flow are later work.
 
 Book details provide metadata/edition selection, status, shelves, ownership,
 rating, reading history/progress, review, private notes, quotations, vocabulary,
@@ -99,8 +107,8 @@ profile folder** and visible information about missing optional services.
 
 A **work** groups an intellectual work for discovery, personal classification,
 and recommendations. An **edition** represents a particular publication,
-translation, format, ISBN, cover, and page count. Reading records identify the
-edition used when known. Work/edition merges and corrections must preserve
+translation, format, ISBN, publisher, cover, and page count. Reading records
+identify the edition used when known. Work/edition merges and corrections must preserve
 reading history and source identifiers; never merge on title similarity alone.
 
 Core metadata: title/subtitle, ordered contributors and roles, original publication
@@ -125,16 +133,16 @@ metadata for later mapping rather than creating a taxonomy automatically.
 
 ### Manga/comics quarantine
 
-Imports may contain manga/comics, but they are outside this app's active written-book
-experience. Preserve those records and their original values in an excluded area
-that can be inspected or corrected. Exclude them from normal Home/My Books,
-challenge counts, written-book statistics, recommendation candidates, and all
-recommendation training/preference signals.
+Manga and comics are outside this app's written-book scope. The Goodreads importer
+skips rows identified by explicit shelves, formats, or edition markers and retains
+their original values in the import report. Existing records with explicit evidence
+remain available under Show excluded records for recovery and inspection. Keep
+excluded records out of Home, normal My Books, lookup results from My Books,
+duplicate review, challenges, statistics, and recommendations.
 
-Recognized source shelves/types can propose exclusion; uncertain classification
-is shown in import preview for user correction. Never guess solely from an author
-or a vague subject. The user can mark additional records excluded after import;
-that change invalidates affected recommendation inputs.
+Use explicit evidence for classification. An author, standalone volume number, or
+vague subject is insufficient evidence. The user can mark additional records
+excluded after import.
 
 ## 5. Reading history and personal writing
 
@@ -290,20 +298,40 @@ undated history rather than automatic annual placement. After that mapping, remo
 the legacy `read-b4-goodreads` shelf from the active shelf list while retaining its
 source value for repeat-import reconciliation.
 
+The user approved Goodreads as the priority source for matching records. Apply
+its status, rating, review, and source-managed shelves while preserving local
+notes, bibliographies, covers, ownership, Calibre links, and separate local
+reading history. Reuse exact Goodreads IDs, equivalent ISBNs, and unambiguous
+title-and-author matches. Keep a separate edition when a matched work has a
+different ISBN. Preview weaker matches for explicit resolution. Take a backup
+before applying a reviewed batch.
+
 ### Calibre
 
-Read-only import of metadata/covers with preview, followed by optional periodic
-change detection. No write-back, ebook conversion, automatic deletion propagation,
-or requirement for Calibre to run continuously. Missing/moved libraries preserve
-the last successful import.
+Save the folder containing `metadata.db` in Settings. Refresh reads the local
+catalog in a read-only SQLite transaction and previews additions and updates.
+Applying saves the connection and updates the profile. Match by Calibre library
+and book UUIDs. Retain previously imported records when the source disappears
+and keep locally copied covers when source artwork is unavailable.
 
-Preferred adapter to evaluate: local `calibredb list --for-machine` plus supported
-metadata/cover access. Only read operations are allowed. If source locks or adapter
-behavior prevent a safe consistent read, stop that refresh or use an explicit
-export/private snapshot approach; never edit Calibre's schema directly. Store
-library identity plus source book ID, not a machine-local numeric ID alone.
-Map custom columns explicitly later; Calibre tags do not automatically become the
-entire shelf hierarchy. Refresh must preserve user corrections and reading data.
+Import core metadata, copy covers, and link to Calibre's existing ebook files.
+Keep source tags, identifiers, comments, publisher, and series in the Calibre
+details. Leave personal shelves independent of those tags. Initially classify
+new books as Unclassified. Use explicit comic formats or known manga/comic tags
+to identify exclusions, which the user can review. Refresh respects reading
+history, personal fields, and edits to previously imported metadata.
+
+My Books supports selecting results in List and Covers and applying one status
+or adding a shelf to the selection. Bulk Read creates an undated completion
+when the book has no completion history. An active reading has to be ended
+through its reading controls before it can be reclassified.
+
+Bulk removal offers a Personal Library-only action and an action for selected
+books linked to the same Calibre library. The warning lists titles and formats.
+The app backs up the profile first and rechecks the source identity, book folders,
+and formats before calling Calibre's trash-backed removal. The app removes
+local records after verifying their Calibre entries and active folders are gone.
+Removing a Personal Library record suppresses its source ID during later refreshes.
 
 ## 8. Bibliography documents and citation relationships
 
@@ -336,9 +364,11 @@ exist outside My Books. Store evidence, source edition, reference location,
 provider, match status, and retrieval/import dates. Preserve parallel evidence
 without displaying duplicate logical connections.
 
-Later stages add EPUB/text-PDF extraction, scanned-PDF/image OCR, page/section
-selection, and matching assistance. Evaluate parsers/OCR on representative material
-before selecting large runtimes. Text-only saving remains available throughout.
+The EPUB prototype extracts dedicated bibliography sections and preserves original
+citation text, grouping, and source location in a separate local record. A searchable
+browser offers possible matches by title and author. It was evaluated against the
+complete Dominion bibliography. Text-PDF extraction, scanned-PDF/image OCR,
+manual section selection, and accepted citation edges are later work.
 
 External incoming discovery may use OpenAlex/OpenCitations/Crossref after measuring
 coverage. An empty result means no known indexed result, not no citations. A
@@ -480,16 +510,17 @@ multi-computer SQLite synchronization is promised.
 ### Stage A — first runnable core, synthetic data only
 
 Deliver normal Windows launch, isolated synthetic profile, light/dark themes,
-basic library search/list and book/edition editing, ownership, flat shelves,
+library search, list and cover views, and book/edition editing, ownership, flat shelves,
 reading/rereading records, page/percentage updates, whole-star ratings, reviews
 and private notes. Include the reading-focused Home, read-next queue, recent ten
 to-read additions, annual challenge, pasted Markdown bibliographies, and backup/
-restore. Book covers/page counts can be set manually; placeholders are acceptable.
+restore. Show covers in the Home sidebar and My Books. Book covers and page counts
+can be set manually. Show a placeholder for books without a cover.
 
 Acceptance: create a book offline, classify it, start/update/finish/reread it,
 relaunch with data intact, and restore a profile containing its bibliography.
-Undated reads never appear in a made-up year. No visual library modes, AI models,
-large catalog, or personal data are required to demonstrate this stage.
+Undated reads stay outside yearly totals. Both library views and the Home sidebar
+can be exercised using fictional books with cover images or placeholders.
 
 ### Stage B — migration-ready tracker, still synthetic during development
 
@@ -507,12 +538,11 @@ use synthetic exports/sources before any authorized read of the personal library
 Lifetime totals include undated completed readings without adding them to a year;
 estimate labels and missing-data coverage agree with their contributing records.
 
-**Real-data gate:** only after Stage B is demonstrably useful and recovery is
-tested, ask the user to authorize the first Goodreads import. Stage B is a target
-milestone, not standing permission to locate/read/import the real export. Real
-personal Calibre contents are likewise not development fixtures. Preview actual
-field differences and correct adapter gaps before committing. Keep synthetic and
-personal profiles separate; real data never enters Git or regression fixtures.
+**Real-data gate:** the user authorized Calibre as the first real source and
+chose the normal profile on November 9, 2026. Verify the adapter on synthetic
+fixtures before applying the authorized import with a pre-import backup.
+Goodreads was authorized separately and requires the user's CSV export. Keep
+personal data outside Git and regression fixtures.
 
 ### Stage C — useful personal recommendations
 
@@ -523,7 +553,7 @@ profile. Add outside discovery after the owned-unread workflow is useful.
 
 ### Stage D — richer browsing and research tools
 
-Sortable/bulk-editable table, Calibre-like cover grid, and keyboard/mouse Cover
+Sortable/bulk-editable table and keyboard/mouse Cover
 Flow; ebook-derived word counts, more statistics and richer classification driven by use; EPUB/PDF/image
 bibliography extraction and OCR; external Markdown change recognition; external
 incoming-citation discovery; interactive citation graph; optional larger offline
@@ -578,8 +608,8 @@ reasons to require personal data or large downloads at project start.
   Windows desktop UI framework supporting the chosen platform direction.
 - [Microsoft.Data.Sqlite](https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/):
   lightweight SQLite provider usable without Entity Framework.
-- [Calibre command documentation](https://manual.calibre-ebook.com/generated/en/calibredb.html):
-  machine-readable listing is available; the adapter must restrict itself to read operations.
+- [Calibre command documentation](https://manual.calibre-ebook.com/generated/en/calibredb.html#remove)
+  describes the trash-backed removal command used by the confirmed cleanup action.
 - [Open Library API guidance](https://openlibrary.org/developers/api): targeted lookup,
   responsible caching/use, and separate bulk-data paths.
 - [SQLite backup API](https://www.sqlite.org/backup.html): consistent database snapshot mechanism.

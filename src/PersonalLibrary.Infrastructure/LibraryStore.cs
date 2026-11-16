@@ -14,6 +14,9 @@ public sealed record BackupPreview(string Path, DateTimeOffset Created, int Book
 
 public sealed class LibraryStore : IDisposable
 {
+    private const string ReadingSectionsKey = "reading-sections";
+    private static readonly ReadingSection DailyReads = new(new Guid("452199dd-fd56-4fc0-a3d7-7008c0902c9d"), "Daily Reads");
+
     public static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true, Converters = { new JsonStringEnumConverter() },
@@ -84,28 +87,130 @@ public sealed class LibraryStore : IDisposable
         {
             var book = JsonSerializer.Deserialize<Book>(reader.GetString(1), Json) ?? throw new InvalidDataException("Invalid book data.");
             if (book.Id.ToString() != reader.GetString(0)) throw new InvalidDataException("Book identity does not match stored record.");
+            if (book.Goodreads is { } goodreads && GoodreadsImporter.IsOutsideScope(goodreads.Fields)) book.Excluded = true;
             ReadingRules.Validate(book);
+            RestoreSourcePublishers(book);
             books.Add(book);
         }
         return books.OrderBy(b => b.SortOrder).ThenBy(b => b.Title).ToList();
     }
 
-    public void Save(Book book)
+    private static void RestoreSourcePublishers(Book book)
+    {
+        if (book.Goodreads is { } goodreads && GoodreadsImporter.Field(goodreads.Fields, "Publisher") is { Length: > 0 } publisher
+            && book.Editions.Find(edition => edition.Id == goodreads.EditionId) is { Publisher: null } goodreadsEdition)
+        {
+            var isbn = GoodreadsImporter.EditionIsbn(goodreads);
+            if (isbn == null ? goodreadsEdition.Label == "Goodreads edition" :
+                OpenLibraryLookup.IsbnKey(goodreadsEdition.Isbn) == OpenLibraryLookup.IsbnKey(isbn))
+                goodreadsEdition.Publisher = publisher;
+        }
+        if (book.Calibre is { } calibre && !string.IsNullOrWhiteSpace(calibre.Metadata.Publisher)
+            && book.Editions.Find(edition => edition.Id == calibre.EditionId) is { Publisher: null } calibreEdition)
+            calibreEdition.Publisher = calibre.Metadata.Publisher.Trim();
+    }
+
+    public void Save(Book book) => SaveBatch([book]);
+
+    public IReadOnlyList<ReadingSection> ReadingSections() =>
+        JsonSerializer.Deserialize<ReadingSection[]>(Setting(ReadingSectionsKey, "null"), Json) ?? [DailyReads];
+
+    public void SaveReadingSections(IEnumerable<ReadingSection> sections)
+    {
+        var updated = sections.Select(section => section with { Name = section.Name.Trim() }).ToArray();
+        var ids = new HashSet<Guid>();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ReadingSection.UnassignedName };
+        foreach (var section in updated)
+        {
+            if (section.Name.Length == 0 || !names.Add(section.Name))
+                throw new InvalidOperationException("Give each section a unique name. “Other books” is reserved.");
+            if (section.Id == Guid.Empty || !ids.Add(section.Id))
+                throw new InvalidOperationException("Each section needs a unique identity.");
+        }
+
+        lock (gate)
+        {
+            var moved = Books().Where(book => book.ReadingSectionId is { } id && !ids.Contains(id)).ToList();
+            foreach (var book in moved) book.ReadingSectionId = null;
+            SaveBatch(moved, (ReadingSectionsKey, JsonSerializer.Serialize(updated, Json)));
+        }
+    }
+
+    public void MoveToReadingSection(Guid bookId, Guid? sectionId)
     {
         lock (gate)
         {
-            ReadingRules.Validate(book);
+            var sections = ReadingSections();
+            if (sectionId.HasValue && sections.All(section => section.Id != sectionId))
+                throw new InvalidOperationException("That reading section is no longer available.");
+            var current = Books().Where(book => !book.Excluded && book.Status == ReadingStatus.CurrentlyReading).ToList();
+            var book = current.Find(book => book.Id == bookId)
+                ?? throw new InvalidOperationException("This book is no longer in Currently Reading.");
+            if (book.ReadingSectionId == sectionId) return;
+            book.ReadingSectionId = sectionId;
+            var destination = current.Where(item => item.Id != bookId && item.ReadingSectionId == sectionId).Append(book).ToList();
+            for (var i = 0; i < destination.Count; i++) destination[i].SortOrder = i;
+            SaveBatch(destination);
+        }
+    }
+
+    public void SaveBatch(IReadOnlyList<Book> books, (string Key, string Value)? setting = null)
+    {
+        lock (gate)
+        {
+            foreach (var book in books) ReadingRules.Validate(book);
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            WriteBooks(connection, transaction, books);
+            if (setting is { } entry) WriteSetting(connection, transaction, entry.Key, entry.Value);
+            transaction.Commit();
+            AutomaticBackup();
+        }
+    }
+
+    private static void WriteBooks(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<Book> books)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "INSERT INTO books(id,document) VALUES($id,$document) ON CONFLICT(id) DO UPDATE SET document=excluded.document";
+        var id = command.Parameters.Add("$id", SqliteType.Text);
+        var document = command.Parameters.Add("$document", SqliteType.Text);
+        foreach (var book in books)
+        {
             book.UpdatedAt = DateTimeOffset.Now;
             book.Title = book.Title.Trim();
-            book.Shelves = book.Shelves.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            using (var connection = Open())
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "INSERT INTO books(id,document) VALUES($id,$document) ON CONFLICT(id) DO UPDATE SET document=excluded.document";
-                command.Parameters.AddWithValue("$id", book.Id.ToString());
-                command.Parameters.AddWithValue("$document", JsonSerializer.Serialize(book, Json));
-                command.ExecuteNonQuery();
-            }
+            book.Shelves = book.Shelves.Select(s => s.Trim()).Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            id.Value = book.Id.ToString();
+            document.Value = JsonSerializer.Serialize(book, Json);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    public bool HasBibliographyFiles(Book book) => Directory.Exists(Path.GetDirectoryName(BibliographyPath(book.Id)));
+
+    public void MergeBooks(Book keep, Book duplicate)
+    {
+        lock (gate)
+        {
+            if (keep.Id == duplicate.Id) throw new InvalidOperationException("Select two different books.");
+            var current = Books().ToDictionary(book => book.Id);
+            if (!current.TryGetValue(keep.Id, out var survivor) || survivor.UpdatedAt != keep.UpdatedAt
+                || !current.TryGetValue(duplicate.Id, out var other) || other.UpdatedAt != duplicate.UpdatedAt)
+                throw new InvalidOperationException("The books changed. Review the pair again.");
+            if (HasBibliographyFiles(other))
+                throw new InvalidOperationException("Keep the record with the bibliography. If both have saved bibliography files, review them separately.");
+            var merged = BookMerge.Combine(survivor, other);
+            Backup("pre-book-merge");
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            WriteBooks(connection, transaction, [merged]);
+            using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM books WHERE id=$id";
+            delete.Parameters.AddWithValue("$id", other.Id.ToString());
+            delete.ExecuteNonQuery();
+            transaction.Commit();
             AutomaticBackup();
         }
     }
@@ -122,23 +227,182 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    public void ApplyCalibre(CalibrePreview preview)
+    {
+        lock (gate)
+        {
+            var existing = Books().Where(book => book.Calibre?.LibraryId == preview.LibraryId)
+                .ToDictionary(book => book.Calibre!.BookId);
+            var suppressed = RemovedCalibreBooks(preview.LibraryId);
+            foreach (var entry in preview.PendingBooks)
+            {
+                var sourceId = entry.Book.Calibre!.BookId;
+                existing.TryGetValue(sourceId, out var current);
+                if (suppressed.Contains(sourceId) || entry.ExpectedUpdate != current?.UpdatedAt)
+                    throw new InvalidOperationException("Your library changed after the preview. Refresh again to review the current changes.");
+            }
+            if (preview.PendingBooks.Count > 0)
+            {
+                Backup("pre-calibre-import");
+                foreach (var entry in preview.PendingBooks)
+                    if (entry.Cover != null) StoreCover(entry.Cover, ".jpg");
+            }
+            SaveBatch(preview.PendingBooks.Select(entry => entry.Book).ToList(), (CalibreImporter.FolderSetting, preview.Folder));
+        }
+    }
+
+    public void ApplyGoodreads(GoodreadsImportPreview preview)
+    {
+        lock (gate)
+        {
+            var books = Books();
+            if (books.Count != preview.Baseline.Count || books.Any(book =>
+                !preview.Baseline.TryGetValue(book.Id, out var expected) || book.UpdatedAt != expected))
+                throw new InvalidOperationException("Your library changed after the preview. Preview the Goodreads CSV again.");
+            if (preview.Pending.Count == 0) return;
+            Backup("pre-goodreads-import");
+            SaveBatch(preview.Pending, (GoodreadsImporter.ReportSetting, JsonSerializer.Serialize(preview.Report(), Json)));
+        }
+    }
+
+    public void ApplyCatalogMatches(CatalogMatchPreview preview)
+    {
+        lock (gate)
+        {
+            if (preview.Pending.Count == 0) return;
+            var current = Books().ToDictionary(book => book.Id, book => book.UpdatedAt);
+            if (preview.Pending.Any(book => !current.TryGetValue(book.Id, out var expected) || expected != book.UpdatedAt))
+                throw new InvalidOperationException("Your library changed. Preview the offline catalog matches again.");
+            Backup("pre-catalog-match");
+            SaveBatch(preview.Pending);
+        }
+    }
+
+    public GoodreadsImportReport? LastGoodreadsImport()
+    {
+        var json = Setting(GoodreadsImporter.ReportSetting, "");
+        return json.Length == 0 ? null : JsonSerializer.Deserialize<GoodreadsImportReport>(json, Json);
+    }
+
+    private static string RemovedCalibrePrefix(Guid libraryId) => $"calibre-removed:{libraryId:D}:";
+
+    internal HashSet<Guid> RemovedCalibreBooks(Guid libraryId)
+    {
+        lock (gate)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            var prefix = RemovedCalibrePrefix(libraryId);
+            command.CommandText = "SELECT key FROM settings WHERE key LIKE $pattern";
+            command.Parameters.AddWithValue("$pattern", prefix + "%");
+            using var reader = command.ExecuteReader();
+            var ids = new HashSet<Guid>();
+            while (reader.Read())
+                if (Guid.TryParse(reader.GetString(0)[prefix.Length..], out var id)) ids.Add(id);
+            return ids;
+        }
+    }
+
+    public BookRemovalResult RemoveBooks(IReadOnlyList<Book> confirmed, CalibreRemovalPlan? calibre = null)
+    {
+        lock (gate)
+        {
+            if (confirmed.Count == 0 || confirmed.Select(book => book.Id).Distinct().Count() != confirmed.Count)
+                throw new InvalidOperationException("Select the books to remove.");
+            var byId = Books().ToDictionary(book => book.Id);
+            var current = confirmed.Select(book => byId.TryGetValue(book.Id, out var found) && found.UpdatedAt == book.UpdatedAt
+                ? found : throw new InvalidOperationException("The selected books changed. Review the removal again.")).ToList();
+            Backup("pre-book-removal");
+            var (removed, warning) = calibre == null
+                ? (current.Select(book => book.Id).ToArray(), (string?)null)
+                : CalibreRemoval.Apply(calibre, current);
+            if (removed.Length == 0) return new BookRemovalResult(0, warning);
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM books WHERE id = $id";
+            var id = delete.Parameters.Add("$id", SqliteType.Text);
+            foreach (var bookId in removed)
+            {
+                id.Value = bookId.ToString();
+                delete.ExecuteNonQuery();
+                if (byId[bookId].Calibre is { } source)
+                    WriteSetting(connection, transaction, RemovedCalibrePrefix(source.LibraryId) + source.BookId.ToString("D"), "true");
+            }
+            transaction.Commit();
+            foreach (var bookId in removed)
+            {
+                var bibliography = SafePath(Profile, Path.Combine("bibliographies", bookId.ToString()));
+                if (!Directory.Exists(bibliography)) continue;
+                try
+                {
+                    var destination = SafePath(Root, Path.Combine("removed-bibliographies", bookId.ToString(), Guid.NewGuid().ToString("N")));
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    Directory.Move(bibliography, destination);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    warning = string.Join("\n\n", new[] { warning, $"The bibliography files for “{byId[bookId].Title}” could not be archived." }
+                        .Where(value => !string.IsNullOrEmpty(value)));
+                }
+            }
+            AutomaticBackup();
+            return new BookRemovalResult(removed.Length, warning);
+        }
+    }
+
     public void SetSetting(string key, string value)
     {
         lock (gate)
         {
-            using (var connection = Open())
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "INSERT INTO settings(key,value) VALUES($key,$value) ON CONFLICT(key) DO UPDATE SET value=excluded.value";
-                command.Parameters.AddWithValue("$key", key);
-                command.Parameters.AddWithValue("$value", value);
-                command.ExecuteNonQuery();
-            }
+            using var connection = Open();
+            WriteSetting(connection, null, key, value);
             AutomaticBackup();
         }
     }
 
+    private static void WriteSetting(SqliteConnection connection, SqliteTransaction? transaction, string key, string value)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "INSERT INTO settings(key,value) VALUES($key,$value) ON CONFLICT(key) DO UPDATE SET value=excluded.value";
+        command.Parameters.AddWithValue("$key", key);
+        command.Parameters.AddWithValue("$value", value);
+        command.ExecuteNonQuery();
+    }
+
     public string BibliographyPath(Guid bookId) => Path.Combine(Profile, "bibliographies", bookId.ToString(), "bibliography.md");
+    private string EpubBibliographyPath(Guid bookId) => Path.Combine(Path.GetDirectoryName(BibliographyPath(bookId))!, "epub-bibliography.json");
+    public bool HasEpubBibliography(Guid bookId) => File.Exists(EpubBibliographyPath(bookId));
+
+    public EpubBibliography? ReadEpubBibliography(Guid bookId)
+    {
+        lock (gate)
+        {
+            var path = EpubBibliographyPath(bookId);
+            return File.Exists(path) ? JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json) : null;
+        }
+    }
+
+    public void SaveEpubBibliography(Guid bookId, EpubBibliography bibliography)
+    {
+        lock (gate)
+        {
+            if (!Books().Any(book => book.Id == bookId))
+                throw new InvalidOperationException("Save the book before attaching an extracted bibliography.");
+            var path = EpubBibliographyPath(bookId);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temporary = path + ".tmp";
+            try
+            {
+                File.WriteAllText(temporary, JsonSerializer.Serialize(bibliography, Json));
+                File.Move(temporary, path, true);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            AutomaticBackup();
+        }
+    }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     public BibliographyText Bibliography(Guid bookId)
     {
@@ -181,10 +445,31 @@ public sealed class LibraryStore : IDisposable
             var extension = Path.GetExtension(source).ToLowerInvariant();
             if (!new[] { ".png", ".jpg", ".jpeg", ".bmp" }.Contains(extension))
                 throw new InvalidOperationException("Choose a PNG, JPEG, or BMP image.");
-            var bytes = File.ReadAllBytes(source);
-            var relative = Path.Combine("covers", Hash(bytes) + extension);
+            return StoreCover(File.ReadAllBytes(source), extension);
+        }
+    }
+
+    public string ImportJpegCover(byte[] bytes) => StoreCover(bytes, ".jpg");
+
+    internal static string CoverName(byte[] bytes, string extension) => Path.Combine("covers", Hash(bytes) + extension);
+
+    internal string StoreCover(byte[] bytes, string extension)
+    {
+        lock (gate)
+        {
+            var relative = CoverName(bytes, extension);
             Directory.CreateDirectory(Path.Combine(Profile, "covers"));
-            File.WriteAllBytes(Path.Combine(Profile, relative), bytes);
+            var destination = Path.Combine(Profile, relative);
+            if (!File.Exists(destination))
+            {
+                var temporary = destination + ".tmp";
+                try
+                {
+                    File.WriteAllBytes(temporary, bytes);
+                    File.Move(temporary, destination);
+                }
+                finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            }
             return relative;
         }
     }
