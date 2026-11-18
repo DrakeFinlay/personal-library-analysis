@@ -37,9 +37,9 @@ November 3, 2026; proposed defaults are adopted unless subsequently revised.
 | Hardware | User-reported 32 GB DDR5 RAM and RTX 4070; CPU and exact available VRAM not measured. |
 | Appearance | Light mode primary; Goodreads-like warm off-white initially; dark mode also supported. |
 | Imports | Goodreads CSV, Calibre refresh with a separate confirmed removal action, online lookup, and complete manual entry. |
-| Initial content | Written books. Manga/comics retained from imports only as excluded records. |
+| Library content | Primarily written works intended for linear reading. Reference, music, and photography/art books have separate categories. Manga and comics are outside the library scope. |
 | Bibliographies | Persistent editable Markdown, source copies, matched references, and linked citation lists. |
-| Recommendations | Owned unread books first; outside discovery later; adjustable bibliography influence. |
+| Recommendations | Ten To read picks, then ten physically owned To read picks. Shelf-based and offline catalog discovery follow. |
 | Development | Randomized synthetic data first; personal import only at a later useful validation milestone. |
 
 No friends feed, social network, hosted account, required cloud service, ebook
@@ -83,8 +83,23 @@ import time; do not present that fallback as a historical fact.
 Stage A includes a list with cover thumbnails and a grid with larger covers.
 Both views share search, visible reading-status toggles, a separate shelf filter,
 and access to the book editor. Clicking a cover in bulk edit toggles its selection.
+My Books keeps the current search, filters, selections, and scroll position when
+the book editor closes. Refresh library reloads the saved records in that view.
 Show the selected edition's cover where available and a placeholder otherwise.
 A sortable table and Cover Flow are later work.
+
+My Books saves the requested books per cover row and title and detail font sizes.
+Narrow windows use fewer columns to keep cards usable. Bulk selection supports
+Shift ranges in the displayed sort order in either direction. Add to shelf
+suggests existing shelves and accepts new names. Configure selected opens a batch
+metadata editor with explicit opt-in fields; edition metadata such as language
+affects only each book's selected edition.
+
+My Books offers a batch search for missing published covers and print MSRP.
+Users can allow other editions' covers and comparable-edition prices. Preserve
+source URLs and matched ISBNs, label alternate covers and estimated MSRP,
+and disclose estimated items in purchase totals. Create a verified backup
+before saving. Searches support cancellation and saving completed results.
 
 Book details provide metadata/edition selection, status, shelves, ownership,
 rating, reading history/progress, review, private notes, quotations, vocabulary,
@@ -93,9 +108,12 @@ New local entries can be created without an ISBN, cover, page count, or internet
 
 ### Bibliographies
 
-Open a bibliography from its source book or a dedicated list. Paste plain text,
-edit it, and save a Markdown file immediately. Later matching enriches that saved
-document; a successful parser or online match is never a prerequisite for saving.
+Open a bibliography from its source book or from a list of titles and authors.
+The list uses two columns at narrower widths and three at wider widths. Closing
+a bibliography keeps the list's scroll position. Add Bibliography attaches
+pasted text or text recovered from page photos to a source book in My Books.
+Review and edit the text before saving it as Markdown. A successful parser or
+online match is never a prerequisite for saving.
 
 ### Settings
 
@@ -131,14 +149,12 @@ periods, regions, smart shelves, and mirroring granular Calibre metadata are
 deferred until actual usage establishes the need. Preserve unmapped source
 metadata for later mapping rather than creating a taxonomy automatically.
 
-### Manga/comics quarantine
+### Comics and manga
 
-Manga and comics are outside this app's written-book scope. The Goodreads importer
-skips rows identified by explicit shelves, formats, or edition markers and retains
-their original values in the import report. Existing records with explicit evidence
-remain available under Show excluded records for recovery and inspection. Keep
-excluded records out of Home, normal My Books, lookup results from My Books,
-duplicate review, challenges, statistics, and recommendations.
+Skip imports with explicit comics or manga metadata or formats. The Goodreads
+import report retains the skipped source rows. Confirmed comics and manga can
+be removed from Personal Library while preserving the source files. Remember
+their source IDs so imports and refreshes skip previously removed records.
 
 Use explicit evidence for classification. An author, standalone volume number, or
 vague subject is insufficient evidence. The user can mark additional records
@@ -146,9 +162,13 @@ excluded after import.
 
 ## 5. Reading history and personal writing
 
-Statuses: **to read, currently reading, read, partially read, did not finish,
-reference only**. No paused status. These statuses are exclusive: a book cannot
-be both to read and did not finish. Multiple different books can be currently reading.
+Statuses and collection categories include **to read, currently reading, read,
+partially read, did not finish, reference only, music book, photography / art
+book,** and **unclassified**. A book has one current status or category, and
+multiple different books can be currently reading. Reference, music, and
+photography/art books stay in My Books with their history and are outside reading
+statistics and the current recommendations. Recommendations for similar items
+in the specialized collections can follow later.
 
 Each reading/rereading has its own optional start and finish dates, outcome,
 edition, and progress entries. Work-level status summarizes the current state
@@ -190,17 +210,52 @@ toward that year's challenge/books/pages. Also show distinct works where useful.
 This proposed default was adopted with approval of the design.
 Completing the same reading twice must never double-count it.
 
-Initial statistics:
+The first Statistics release covers items 1–4. The two estimate-based totals
+follow in a later release.
 
 1. Books completed per year, with drill-through to the contributing readings.
 2. Pages per year, with missing-page-count completions disclosed separately.
-3. Publication-year scatterplot matching the supplied reference: reading date on
-   the horizontal axis, original work publication year vertically, selectable
-   points opening the corresponding book/reading.
+3. Publication-year scatterplot with solid dots at the saved coordinates.
+   Completion date runs horizontally and original work publication year runs
+   vertically. Selecting a dot opens its reading or the readings at that exact
+   coordinate. Grid intervals adapt to the visible range and chart size.
+   Double-click the plot to open it full screen. In full screen, the mouse
+   wheel zooms the publication-year axis around the pointer while preserving
+   the completion-date axis.
 4. Lifetime total pages read, including completed readings with unknown dates.
 5. Lifetime words read, with known/extracted counts and estimates distinguished.
 6. Estimated height of the completed-book stack, with a simple visual and readable
    units such as centimeters, meters, or kilometers according to the total.
+
+### Library purchases
+
+Each saved edition can record an MSRP, a price paid, a vendor, and whether it
+was bought new or used. All four are optional. MSRP and price paid each have
+their own currency selector for CAD, USD, JPY, or EUR.
+
+An edition can record multiple physical copies, each with its own optional
+purchase year, price, vendor, and condition. A sold copy retains its purchase
+history and can record optional proceeds and their currency. Selling the last
+physical copy clears physical ownership while preserving digital ownership.
+
+Purchased from suggests previously saved vendor names and accepts a new name.
+Copies can be marked as gifts or library loans. Gift copies contribute to owned
+retail value and are excluded from purchase spending and purchase breakdowns.
+Library loans are excluded from ownership and financial statistics. Reading
+history continues to include completed library readings.
+Bulk edit can mark selected books Gift or Library alongside status and shelf
+changes. Apply to each book's selected edition, targeting its latest unsold
+physical copy when copy history exists. A Library action adds a loan entry if
+all recorded copies have already been sold.
+
+Lifetime purchase statistics include sold copies and report sale proceeds
+separately from gross spending. Current library purchase statistics use only
+held copies and editions. Each average uses the items included in its own
+total. The edition's MSRP applies to each recorded physical copy. Foreign amounts use a dated Bank of Canada
+rate snapshot, cached locally and refreshable from Statistics. CAD totals
+disclose missing prices and amounts awaiting conversion. The two pie charts
+count editions with a known condition or vendor, and report missing values
+alongside each chart.
 
 ### Lifetime totals and playful scale statistics
 
@@ -259,7 +314,13 @@ may appear in their known year, visibly distinguished from exact-date positions;
 undated and uncertain values must not receive fabricated exact dates. Repeated
 readings can produce multiple points. Missing values must not appear as zero.
 
-Subject, author, and language breakdowns follow later. Classification views must
+Reading highlights include the five most-read author credits by completed
+readings and favorite author credits with an average rating of at least 4.5
+stars across at least two distinct rated, completed books. The oldest completed
+book uses its original publication year. The longest and shortest completed books use the edition page
+counts recorded in reading history. Undated completions are eligible.
+
+Broader subject, author, and language breakdowns follow later. Classification views must
 explain overlapping membership so counts are not mistaken for mutually exclusive
 totals. Cumulative books/pages-over-time charts are outside initial scope.
 
@@ -318,7 +379,7 @@ Import core metadata, copy covers, and link to Calibre's existing ebook files.
 Keep source tags, identifiers, comments, publisher, and series in the Calibre
 details. Leave personal shelves independent of those tags. Initially classify
 new books as Unclassified. Use explicit comic formats or known manga/comic tags
-to identify exclusions, which the user can review. Refresh respects reading
+to skip those titles on import. Refresh respects reading
 history, personal fields, and edits to previously imported metadata.
 
 My Books supports selecting results in List and Covers and applying one status
@@ -367,8 +428,14 @@ without displaying duplicate logical connections.
 The EPUB prototype extracts dedicated bibliography sections and preserves original
 citation text, grouping, and source location in a separate local record. A searchable
 browser offers possible matches by title and author. It was evaluated against the
-complete Dominion bibliography. Text-PDF extraction, scanned-PDF/image OCR,
-manual section selection, and accepted citation edges are later work.
+complete Dominion bibliography. Image OCR uses the installed Windows recognizer
+offline. Text-PDF extraction, scanned-PDF OCR, manual section selection, and
+accepted citation edges remain later work.
+
+For books without a local file, offer a user-initiated search of Internet
+Archive's public editions. Preview an identifiable bibliography from the
+chosen EPUB or public scan text, then save it with the edition link and source
+hash. Preserve local EPUB citations and editable Markdown alongside it.
 
 External incoming discovery may use OpenAlex/OpenCitations/Crossref after measuring
 coverage. An empty result means no known indexed result, not no citations. A
@@ -377,10 +444,24 @@ visualization is an important later deliverable; relational linked lists come fi
 
 ## 9. Recommendations
 
-Priority one is choosing the next **owned unread written book**; outside discovery
-follows. Proposed default candidate definition: owned, not already completed,
-not currently reading, and not excluded. DNF/partially-read candidates stay out
-unless explicitly requested. Offer rereads as a separate future mode.
+The overview starts with up to ten of the strongest matches from **To read**, then
+shows up to ten **owned and unread** matches. Each section shows ten covers across
+at wide window sizes and five across in narrower windows. Each cover opens the
+book editor. The owned section requires To read status and a currently held
+physical copy. Ebook-only and audiobook-only holdings remain eligible only for
+Top picks from To read. The owned section prefers books outside the first section when
+there are enough matches. Each section uses at most one book per known author.
+Not now hides a title for one year.
+Not interested removes it from To read and hides it from recommendations while
+retaining the library record and holdings. Both sections omit completed and
+excluded books. Currently reading, DNF, partially
+read, and reference-only books are outside these candidate groups. Per-shelf
+recommendations and discovery from the offline reference catalog follow later.
+
+**Cited by books you enjoyed** surfaces up to ten possible book references from
+completed works rated four or five stars. It groups repeat citations and favors
+references from multiple highly rated sources. Picks link to their evidence
+and can include works outside My Books, which the reader can look up or add.
 
 Begin with an explainable local baseline using explicit interests, subjects,
 descriptions, ratings, and accepted citation relationships. Keep separate interests
@@ -546,10 +627,11 @@ personal data outside Git and regression fixtures.
 
 ### Stage C — useful personal recommendations
 
-Owned-unread baseline, adjustable bibliography boost, grounded reasons, then local
-embeddings/review-derived preferences where evaluation shows benefit. Validate
-mechanics synthetically first and taste quality with the authorized personal
-profile. Add outside discovery after the owned-unread workflow is useful.
+To read and owned-unread shortlists, adjustable bibliography boost, grounded
+reasons, then local embeddings and review-derived preferences where evaluation
+shows benefit. Validate mechanics synthetically first and taste quality with the
+authorized personal profile. Add shelf-based and offline catalog discovery after
+the initial shortlists are useful.
 
 ### Stage D — richer browsing and research tools
 
@@ -587,8 +669,8 @@ without an explicit request. The first implementation delivery is prepared local
 
 No further technical questionnaire is needed before reviewing this proposal.
 Specific defaults to review are reread challenge counting, automatic backup
-retention, flat initial shelves, the retained-but-excluded manga/comics treatment,
-and Stage A/B scope. The optional recommendation controls are explanatory proposals.
+retention, flat initial shelves, and Stage A/B scope. The optional recommendation
+controls are explanatory proposals.
 
 Implementation will resolve actual Goodreads field coverage, Calibre adapter
 compatibility, provider coverage/terms, OCR/parser selection, local model choice,

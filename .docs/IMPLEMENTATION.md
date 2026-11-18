@@ -98,6 +98,23 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   selection, status filtering, the removal warning, and citation browsing. The
   updated Windows app was published to the regular launcher folder.
 
+## EPUB bibliography batch
+
+- Reviewed 229 linked EPUBs and saved 34 new bibliographies and further-reading
+  lists with 8,157 entries. The Bibliographies page now includes these 34 books
+  and Dominion. The batch verifies the source EPUB hashes, validates a profile
+  backup before each write batch, and checks that existing bibliographies and
+  editable notes are preserved.
+- The reader recognizes styled bibliography headings and reference entries,
+  bounds extraction to the relevant sections, and resolves common named HTML
+  entities locally. Nonstandard sections were reviewed against their EPUB
+  layouts. The image-only bibliography in The Life and Death of Yukio Mishima
+  was transcribed with offline OCR and checked against the seven source images.
+  Automated extraction handles text sections. Chapter endnotes without a
+  dedicated bibliography remain separate.
+- All 115 executable checks passed. The Release build and Windows publish
+  succeeded.
+
 ## Online lookup, sorting, and bibliography preview
 
 - Download metadata in Book & editions searches Open Library by ISBN, title, or
@@ -152,14 +169,32 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - Settings can also use reading sessions from a Goodreads account-data ZIP
   alongside the library CSV. The ZIP supplies dates and rereads while the CSV
   supplies the book identities and shelves. Archive sessions are matched by
-  exact title within the CSV. Duplicate CSV titles are flagged and their
-  archive sessions skipped. Legacy completions stay undated, and partially
+  exact title within the CSV. When titles repeat, a unique matching finish date
+  can identify the correct row. Ambiguous sessions are flagged and skipped.
+  Legacy completions stay undated, and partially
   read or abandoned books keep their Goodreads status. The Japanese to-read
   shelf keeps its name and also maps to To read.
 - The authorized personal import ran on November 16, 2026 with pre-import
   backups. A repeat preview found no additional automatic changes and kept
   uncertain matches available for review. The 70 checks and Windows Release
   build passed.
+
+### Reread recovery
+
+- Reconciled all nine repeated titles in the account archive. Restored missing
+  readings for seven titles and verified two complete histories already stored.
+  Consolidated the two local Frankenstein records and matched both dated readings
+  to their Goodreads editions while preserving the Calibre edition. Removed
+  the contradictory undated Odyssey completion from the To read record.
+  Verified a profile backup before writing and rechecked the saved history.
+- The importer no longer creates a completion on a To read or currently reading
+  record from Read Count alone. Distinct archive sessions can preserve unknown
+  dates and year-only finishes for completed books. Year-only finishes count
+  in the known year and are identified separately outside the exact-date
+  scatterplot. The reading editor accepts a year-only finish on a completion.
+- Verified that the saved Frankenstein readings produce both publication
+  scatterplot points and a repeat recovery finds no remaining changes. All
+  133 executable checks passed. The Release build and Windows publish succeeded.
 
 ## Library cleanup and lookup-first entry
 
@@ -242,15 +277,314 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   publish succeeded. In the isolated Windows test profile, verified that moving
   a book into Daily Reads preserved its displayed progress and saving a custom
   section added it to Home.
+- Double-clicking a Currently Reading card opens that book's editor. In the
+  isolated Windows test profile, verified opening by title and cover and using
+  the Move down button. All 93 synthetic checks and the Release build passed.
+- Currently Reading covers are 25% wider and taller (125 × 185). Verified
+  the larger covers and visible card controls in the isolated Windows test
+  profile. All 93 synthetic checks and the Release build passed.
+
+## Shelf autocomplete
+
+- The book editor suggests existing shelf names as you type. Matching ignores
+  case and shows names that start with the entered text first. Click a match or
+  select it with the arrow keys and Enter. Each comma-separated entry can be
+  completed independently, and the field still accepts new shelf names.
+- All 93 synthetic checks and the Release build passed. In the isolated Windows
+  test profile, `chr` suggested `Christian`, and `HIS` matched `history`.
+  Keyboard and mouse selection preserved the other shelves, and the saved list
+  persisted after reopening the book.
+
+## Goodreads rating recovery and first recommendations
+
+- **Settings → Recover Goodreads ratings** previews a ratings-only update using
+  the Goodreads library CSV and the account-data ZIP. For archive ratings it
+  requires a unique title in each source and a unique existing Goodreads ID
+  link. It shows unmatched titles, preserves existing ratings, and backs up the
+  profile before saving. A valid CSV rating continues to take precedence on a
+  regular Goodreads import. Blank and zero-star CSV values preserve saved stars.
+- The authorized normal-profile recovery added 489 ratings. The library CSV
+  supplied zero positive ratings. The ZIP supplied 508 whole-star ratings, of
+  which 19 had no unique linked book. Verified a pre-import backup, preservation
+  of other book fields, and zero additional changes on a repeat preview. My Books
+  displays saved ratings in List and Covers.
+- The first **Recommendations** view ranked unread To read books from completed books' ratings,
+  shared authors, personal shelves, and Calibre tags. It puts more weight on
+  authors, reduces the influence of sparse evidence, uses up to three signals,
+  and shows the reasons for each positive match. Low ratings can lower a match.
+  Excluded books contribute neither candidates nor evidence.
+- All 102 synthetic checks, the Release build, and the self-contained Windows
+  publish passed. The isolated Windows profile showed ranked books, explanations,
+  the ownership filter, saved stars in My Books, and unmatched titles in the
+  ratings preview. The initial local ranking
+  found positive evidence for 81 of 197 candidates in the normal library.
+
+## Recommendations overview
+
+- **Top picks from To read** shows up to five cover tiles ranked by the existing
+  rating-based score. **Owned and unread** shows up to five picks based on edition
+  holdings and also considers unclassified books. It prefers picks outside the
+  first row. Each tile opens the book editor and shows its ranking evidence on
+  hover. Per-shelf recommendations and offline catalog discovery remain planned.
+- The normal library returned five distinct picks per row. The isolated Windows
+  profile rendered both cover rows and opened the selected book. All 104 synthetic
+  checks and the Release build and publish passed.
+
+## Library view and recommendation feedback
+
+- **My Books** keeps its search, filters, sort order, selection, and scroll
+  position while opening or closing a book. **Refresh library** reloads the saved
+  records and keeps the current view. Reopening a book reads its latest saved
+  details even before refreshing the library results.
+- **Merge two books** opens two independent searches seeded from the current
+  library query. A selected pair can use the existing merge review and backup
+  workflow even when automatic duplicate detection never suggested the pair.
+- Recommendation scoring gives less weight to sparse author evidence. Each row
+  shows at most one title per known author. The same profile that previously
+  showed six Murakami books returned two across the ten picks after the change.
+- **Not now** pauses recommendations for a title for one year. **Not interested**
+  removes it from To read and Read next where applicable and suppresses future
+  recommendations while keeping the book and holdings. Goodreads refresh keeps
+  the local preference. Deliberately adding the title to To read clears dismissal.
+- The isolated Windows profile verified saved editor closure and manual refresh
+  with an active query, status filter, and scrolled results. It also verified both
+  recommendation actions, persistence after relaunch, and the manual picker
+  through the merge review. All 109 synthetic checks and the Release build and
+  publish passed.
+
+## Expanded recommendation sections
+
+- **Top picks from To read** and **Owned and unread** now show up to ten picks
+  each, arranged five covers per row. The author limit applies across each full
+  section. The isolated Windows profile showed ten picks in each section. All
+  109 synthetic checks, the Release build, and the Windows publish passed.
+
+## Responsive recommendations and Statistics
+
+- Recommendations shows ten covers across when the usable width reaches 1,800
+  device-independent pixels and five across in smaller windows. Verified both
+  layouts in the isolated Windows profile, including the maximized 3,440-pixel
+  display.
+- Statistics shows lifetime pages, books completed per year, pages per year, and
+  original publication year versus completion date. Page totals use the edition
+  recorded for each completed reading. Annual charts count rereads separately
+  and show missing page counts. Lifetime pages include undated completions with
+  known page counts. The scatterplot discloses omissions for unavailable dates
+  and original publication years and shows solid, unnumbered dots at the saved
+  coordinates.
+- Selecting a year shows the contributing reading records. Selecting a dot
+  opens its reading in the editor's Reading & history tab, or lists the readings
+  when several share that exact coordinate. Verified the dots and both click
+  paths in the isolated profile. All 114 synthetic checks, the Release build,
+  and the Windows publish passed.
+
+## Full-screen publication-year chart
+
+- The chart uses denser publication-year grid lines and a labeled BCE/CE
+  divider. Completion dates show annual and half-year grid lines when space
+  permits.
+- Double-click the chart or select Full screen to open the borderless view.
+  The mouse wheel zooms the publication-year axis around the pointer. The
+  completion-date range, grid, and horizontal positions stay fixed. Reset
+  zoom restores the full publication range. A single click still opens the
+  readings at a dot.
+- In the isolated Windows profile, verified that the full-screen chart fills
+  the 3,440 × 1,440 display, wheel zoom moves only the publication-year axis,
+  and returning to Statistics keeps the original scroll position. All 126
+  checks passed, and the Release build and Windows publish succeeded.
+
+## Reading highlights
+
+- Statistics lists up to five most-read author credits by completed readings,
+  breaking ties alphabetically. Favorite authors are ranked by average stars
+  and require at least 4.5 stars across two or more distinct rated, completed
+  books. Rereads count toward completed readings and each work contributes one
+  current rating. Author grouping uses the saved credit with case and whitespace
+  normalized.
+- The oldest book uses the original publication year, including BCE years.
+  The longest and shortest books use the known page counts of the editions
+  actually read. Undated completions are eligible. Each book opens its reading
+  record.
+- All 129 checks passed. Verified the five highlights and the reading link
+  with the isolated Windows test profile. The Release build and regular
+  Windows publish succeeded.
+- The top-five ranking and minimum 4.5-star average were verified in the
+  executable checks. All 130 checks passed.
+
+## Bibliography reader, image OCR, and cited recommendations
+
+- Bibliographies opens a dedicated reader from a title-and-author list. The
+  list keeps its scroll position when a reader closes and uses two columns
+  below 1,450 available device-independent pixels and three at that width or
+  above.
+- Add Bibliography lets the reader choose a source in My Books, paste text,
+  or scan one or more photos with Windows OCR using the installed profile
+  language. Scanned text is editable before save. The profile retains the
+  original images by SHA-256 and the existing Markdown revision history. EPUB
+  citations and editable text remain independently accessible.
+- Cited by books you enjoyed shows up to ten works cited by books rated four
+  or five stars with a completed reading. It uses structured EPUB citations
+  and recognizable book references in pasted or scanned text. Picks show their
+  sources, can be looked up or added through the regular add-book flow, and
+  support Not now and Not interested. Ambiguous or unrecognized plain text
+  stays available in the reader.
+- In an isolated Windows profile, verified both column counts, direct reading
+  and return to a scrolled list, navigation from a recommendation to its
+  citation, and scanning and saving a synthetic page image. All 118
+  executable checks passed. The Release build and Windows publish succeeded.
+
+## Online bibliography lookup
+
+- Find Bibliography Online searches public Internet Archive editions by title
+  and author or ISBN. The reader chooses an edition, previews its bibliography,
+  and explicitly saves it to the source book. The workflow reads a public EPUB
+  or a recognizable section of the archive's OCR text. It skips restricted
+  records and private files. Results require bibliography text.
+- Saved online bibliographies retain the edition and download links, content
+  hash, retrieval date, and extracted reference text. They are accessible
+  offline and stored alongside any local EPUB bibliography and editable
+  Markdown. Identifiable book citations can contribute to recommendations.
+- The scan fallback depends on visible section headings and recognizable
+  citation formatting. Missing downloads, image-only scans, and PDFs without
+  public scan text may have no importable bibliography.
+- All 124 executable checks and the Release build passed. Verified live
+  Internet Archive search, preview, save, and reopening in an isolated Windows
+  profile using a public scan of Books and Their Makers During the Middle Ages.
+  The Windows build was published to the regular launcher folder after closing
+  the running app. The published application assembly matches the verified
+  test build.
+
+## Collection categories and comic removal
+
+- Music book and Photography / art book are available in an individual book's
+  Reading & history tab, the My Books filters, and bulk edit. They preserve
+  ownership, metadata, and any previous reading records. These categories and
+  Reference only stay out of reading counts and recommendation evidence.
+  Goodreads refresh preserves the two new local categories.
+- Reviewed and removed 191 comic and manga records from Personal Library,
+  including 8 without the existing exclusion flag. Verified the pre-removal
+  backup, checked that the 761 remaining book records were identical, and
+  reran the candidate audit. The operation used Personal Library-only removal.
+  Goodreads and Calibre refreshes honor source IDs recorded on removal.
+  Calibre also skips new records with explicit comic or manga evidence.
+- All 135 checks passed. Verified the category filters and bulk menu in the
+  isolated Windows profile. The Release build and regular Windows publish
+  succeeded.
+
+## Library purchase tracking
+
+- Book & editions saves optional MSRP, price purchased, vendor, and new/used
+  condition per edition. MSRP and price paid support independent CAD, USD,
+  JPY, and EUR currencies. A recorded zero and a blank remain distinct.
+- Statistics shows recorded MSRP and spend in CAD, plus condition and vendor
+  pies by edition count. It reports missing values and foreign prices awaiting
+  conversion. Each total shows its average per included edition when available.
+  Bank of Canada exchange rates are dated, refreshable, and cached
+  in the profile for offline use. Converted spending uses the displayed snapshot.
+- All 139 checks passed, including mixed currencies, offline rate reuse, vendor
+  grouping, and persistence. In the isolated Windows profile, verified the CAD
+  totals and both pies, then saved a vendor edit and confirmed it updated the chart.
+  The Release build and regular Windows publish succeeded.
+
+## Physical copies, sales, and lifetime purchases
+
+- Book & editions supports multiple physical copies of the same edition. Each
+  copy has its own optional purchase year, price, currency, vendor, condition,
+  Sold physical copy checkbox, and optional sale proceeds with currency.
+- Existing purchase fields remain readable. Recording an existing physical
+  purchase as sold or adding another copy preserves the original purchase in
+  copy history. The final physical sale clears physical ownership and retains
+  ebook or audiobook ownership.
+- Purchase Statistics has Lifetime and Current library tabs with scoped MSRP,
+  spending, averages, and vendor/condition pies. Lifetime includes sold copies
+  and reports proceeds separately. Edition MSRP applies to each physical copy.
+- All 142 checks passed. The Release build and regular Windows publish succeeded.
+  In an isolated TEST PROFILE, verified both statistics tabs, saved a sale with
+  proceeds, added and saved a repurchase, and marked an existing purchase sold
+  with unknown proceeds. Read back the saved records to verify prices, copy
+  history, and digital ownership.
+
+## Published covers and sourced MSRP
+
+- My Books offers Find covers and MSRP for batch lookup, cancellation, review,
+  and saving completed results. Google Books, Open Library, publisher pages,
+  and BookPal supply published images or explicit print list prices.
+- Each enriched edition records source URLs, matched ISBNs, alternate-cover
+  status, and whether MSRP is estimated from a comparable print edition.
+  The editor shows MSRP evidence and purchase statistics disclose estimated
+  items. Existing values and books changed since a search are preserved.
+- Created and verified a full live-profile backup before research, then made
+  another verified backup before applying results. Reviewed downloaded covers,
+  including interior-page replacements, and tried the save on a profile copy.
+- Updated 632 works in the authorized live profile. Added covers to 464
+  previously uncovered works and improved covers for 17 works with interior
+  pages or blank scans. Added 454 MSRP values, including 302 labeled estimates.
+  The remaining gaps are 23 works without covers and 357 editions without MSRP.
+  These counts describe this enrichment run and can change with later edits.
+- Verified all personal fields, edition identities, ownership, purchase and
+  sale records, and previously entered MSRP against the pre-update snapshot.
+  The ignored local audit retains item-level sources and the unresolved list.
+- All 149 checks passed. Verified batch search, backup/save, the downloaded
+  cover after manual refresh, and the saved MSRP source in a synthetic TEST
+  PROFILE. The Release build and regular Windows publish succeeded.
+
+## Store suggestions, gifts, and library loans
+
+- Purchased from is an editable dropdown of previously saved vendor names
+  across edition purchases and physical-copy history. Typing suggests matching
+  names and new store names remain supported.
+- Acquisition details include gift and library-loan checkboxes for existing
+  entries and individual physical copies. Gifts contribute to owned retail
+  value and are excluded from spending and purchase breakdowns. Library loans
+  are excluded from ownership and financial totals and retain reading history.
+- All 151 checks passed. In an isolated TEST PROFILE, verified that typing
+  “am” suggests Amazon, choosing it saves the full name, and gift and library
+  states persist. Verified that a library loan clears physical ownership and
+  cannot simultaneously be marked gifted or sold.
+- The Release build and regular Windows publish succeeded.
+
+## Bulk gift and library marking
+
+- The My Books bulk toolbar includes Keep gift/library, Gift, and Library.
+  Apply to selected combines acquisition changes with optional status and shelf
+  changes in the existing batch save.
+- Changes target each selected book's selected edition and latest unsold copy.
+  Existing edition-level purchases use the same gift and library flags as the
+  configuration window. If all copies are sold, Library adds a loan record.
+- Regression checks cover gift spending, library ownership, selected editions,
+  preservation of reading and purchase history, and previously sold copies.
+- All 154 checks passed. In an isolated TEST PROFILE, applied Gift and then
+  Library to three selected books and verified that both batch updates persisted.
+  The Release build and regular Windows publish succeeded.
+
+## Library display and bulk configuration
+
+- Owned and unread requires To read status and a currently held physical copy.
+  Ebook-only, audiobook-only, unclassified, sold, and library-loan entries are
+  excluded from this section. Digital To read books remain eligible for Top picks.
+- My Books Display saves a requested 1–20 cover columns and independent title
+  and detail font sizes. Narrow windows reduce the column count to fit.
+- Bulk selection supports Shift ranges in either direction using the current
+  filtered sort order. The shelf field suggests saved names and accepts new ones.
+- Configure selected opens an opt-in batch editor for language, publisher,
+  author, work/edition years, pages, rating, status, and additive shelves.
+  Only checked fields change; edition edits target the selected edition.
+- All 162 checks passed. Synthetic Windows verification covered four-column
+  layout, shelf completion, range selection, and a three-book language update
+  with preserved selection. Saved records confirmed that unselected books were
+  unchanged.
+- The Release build completed with no warnings or errors, and the regular
+  Windows launcher build was published successfully.
 
 ## Deliberate limitations and follow-ups
 
-- Stage B broader catalog coverage, lifetime/chart statistics,
-  quotation/vocabulary capture, and accepted citation relationships are
-  still planned. Calibre custom column mapping remains deferred.
-- Recommendations, OCR/extraction, automatic external Markdown watching, visual
-  browsing modes beyond the list and cover grid, citation graph, and Anki
-  integration remain later stages.
+- Stage B broader catalog coverage, estimated lifetime words and book-stack
+  height, quotation/vocabulary capture, and accepted citation relationships
+  remain planned. Calibre custom column mapping remains deferred.
+- Description and review interpretation, embeddings, and broader catalog
+  discovery remain later recommendation work. Direct PDF extraction, automatic
+  external Markdown watching, visual browsing modes beyond the list and cover
+  grid, citation graph, and Anki integration remain later stages.
 - Initial backups contain complete profile copies. The retention policy keeps 14
   daily and 4 weekly archives; manual/pre-restore archives are retained. Large-source
   deduplication is deferred until document import makes it useful.
@@ -262,8 +596,9 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   contributor roles and full date precision/provenance arrive with catalog imports.
 - Settings live inside `personal.sqlite` initially. The optional Open Library
   index lives under `resources/open-library.sqlite` outside profile backups.
-- Publication year fields accept signed years; approximate/year-only reading dates
-  are not yet offered. Reading dates are exact or unknown in this initial editor.
+- Publication year fields accept signed years. Completion dates support exact
+  dates, year-only finishes, or an unknown date. Start dates accept exact dates
+  or an unknown date.
 
 The normal profile stays under `%LOCALAPPDATA%/PersonalLibrary`. Synthetic/test
 profiles stay under ignored `.local/`; they are never copied into the normal profile.

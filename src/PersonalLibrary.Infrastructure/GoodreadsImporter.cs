@@ -21,15 +21,17 @@ public sealed class GoodreadsImportPreview
 {
     private readonly GoodreadsImporter.Source[] sources;
     private readonly Book[] books;
+    private readonly HashSet<string> previouslyRemoved;
     private readonly Dictionary<int, Guid> decisions = [];
     internal readonly Dictionary<Guid, DateTimeOffset> Baseline;
     internal readonly List<Book> Pending = [];
 
-    internal GoodreadsImportPreview(string fileName, GoodreadsImporter.Source[] sources, Book[] books)
+    internal GoodreadsImportPreview(string fileName, GoodreadsImporter.Source[] sources, Book[] books, HashSet<string> previouslyRemoved)
     {
         FileName = fileName;
         this.sources = sources;
         this.books = books;
+        this.previouslyRemoved = previouslyRemoved;
         Baseline = books.ToDictionary(book => book.Id, book => book.UpdatedAt);
         Rebuild();
     }
@@ -67,12 +69,14 @@ public sealed class GoodreadsImportPreview
         var reserved = new HashSet<Guid>();
         var byId = books.Where(book => book.Goodreads != null).ToDictionary(book => book.Goodreads!.BookId, StringComparer.Ordinal);
         var candidates = sources.ToDictionary(source => source.Number, source => GoodreadsImporter.Candidates(source, books));
-        var claims = sources.Where(source => !GoodreadsImporter.IsOutsideScope(source.Fields) && !byId.ContainsKey(source.Id) && !decisions.ContainsKey(source.Number))
+        var claims = sources.Where(source => !previouslyRemoved.Contains(source.Id) && !GoodreadsImporter.IsOutsideScope(source.Fields) &&
+                !byId.ContainsKey(source.Id) && !decisions.ContainsKey(source.Number))
             .Select(source => candidates[source.Number].Automatic).OfType<Book>()
             .GroupBy(book => book.Id).ToDictionary(group => group.Key, group => group.Count());
         var sourceKeys = new HashSet<string>(StringComparer.Ordinal);
         var possibleDuplicates = new HashSet<int>();
-        foreach (var source in sources.Where(source => source.Error == null && !GoodreadsImporter.IsOutsideScope(source.Fields)).OrderBy(source => !byId.ContainsKey(source.Id)))
+        foreach (var source in sources.Where(source => source.Error == null && !previouslyRemoved.Contains(source.Id) &&
+            !GoodreadsImporter.IsOutsideScope(source.Fields)).OrderBy(source => !byId.ContainsKey(source.Id)))
         {
             var repeated = false;
             foreach (var key in GoodreadsImporter.DuplicateKeys(source)) repeated |= !sourceKeys.Add(key);
@@ -91,6 +95,11 @@ public sealed class GoodreadsImportPreview
             if (GoodreadsImporter.IsOutsideScope(source.Fields))
             {
                 rows.Add(new(source.Number, source.Id, label, "Out of scope", "Manga or comics. This row is skipped and retained in the import report.", []));
+                continue;
+            }
+            if (previouslyRemoved.Contains(source.Id))
+            {
+                rows.Add(new(source.Number, source.Id, label, "Skip", "Previously removed from Personal Library.", []));
                 continue;
             }
             var (automatic, possible, reason) = candidates[source.Number];
@@ -155,8 +164,7 @@ public static class GoodreadsImporter
     internal static bool IsOutsideScope(Dictionary<string, string> fields)
     {
         var title = Field(fields, "Title");
-        if (System.Text.RegularExpressions.Regex.IsMatch(title, @"\((manga|manhwa|manhua|comics?)\)|\[(manga|manhwa|manhua|comics?)\]",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant)) return true;
+        if (IsComicTitle(title)) return true;
         var categories = new[] { "Bookshelves", "Exclusive Shelf", "Genre", "Genres", "Binding" }
             .SelectMany(field => Field(fields, field).Split([',', ';', '/'], StringSplitOptions.RemoveEmptyEntries));
         return categories.Any(category =>
@@ -168,11 +176,23 @@ public static class GoodreadsImporter
         });
     }
 
+    internal static bool IsComicTitle(string title) =>
+        System.Text.RegularExpressions.Regex.IsMatch(title,
+            @"\((?:manga|manhwa|manhua|comics?|graphic novel)\)|\[(?:manga|manhwa|manhua|comics?|graphic novel)\]",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     internal sealed record Source(int Number, string Id, string Title, string Author, string Isbn, ReadingStatus? Status,
         DateOnly? Finished, DateOnly? Added, int? ReadCount, string[] Shelves, Dictionary<string, string> Fields,
-        string? Error, string Warning, GoodreadsReadingArchive.Session[]? Sessions = null);
+        string? Error, string Warning, GoodreadsArchive.Session[]? Sessions = null);
 
     public static GoodreadsImportPreview Preview(LibraryStore store, string path, string? archivePath = null)
+    {
+        var sources = ReadSources(path);
+        if (!string.IsNullOrWhiteSpace(archivePath)) AttachReadingSessions(sources, archivePath);
+        return new GoodreadsImportPreview(Path.GetFileName(path), sources.ToArray(), store.Books().ToArray(), store.RemovedGoodreadsBooks());
+    }
+
+    internal static List<Source> ReadSources(string path)
     {
         using var parser = new TextFieldParser(path, new UTF8Encoding(false, true))
         {
@@ -199,25 +219,30 @@ public static class GoodreadsImporter
         if (sources.Count == 0) throw new InvalidDataException("The Goodreads CSV contains no books.");
         var duplicates = sources.Where(source => source.Error == null).GroupBy(source => source.Id)
             .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
-        if (!string.IsNullOrWhiteSpace(archivePath)) AttachReadingSessions(sources, archivePath);
-        return new GoodreadsImportPreview(Path.GetFileName(path),
-            sources.Select(source => duplicates.Contains(source.Id) ? source with { Error = "Duplicate Goodreads ID in this CSV. Correct the duplicate rows and preview again." } : source).ToArray(),
-            store.Books().ToArray());
+        return sources.Select(source => duplicates.Contains(source.Id)
+            ? source with { Error = "Duplicate Goodreads ID in this CSV. Correct the duplicate rows and preview again." }
+            : source).ToList();
     }
 
     private static void AttachReadingSessions(List<Source> sources, string archivePath)
     {
-        var archive = GoodreadsReadingArchive.Read(archivePath);
-        var duplicateTitles = sources.GroupBy(source => source.Title, StringComparer.OrdinalIgnoreCase)
-            .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var archive = GoodreadsArchive.ReadSessions(archivePath);
+        var byTitle = sources.ToLookup(source => source.Title, StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < sources.Count; index++)
         {
             var source = sources[index];
             if (!archive.TryGetValue(source.Title, out var sessions) || IsLegacy(source.Fields)) continue;
-            if (duplicateTitles.Contains(source.Title))
+            var sameTitle = byTitle[source.Title];
+            if (sameTitle.Count() > 1)
             {
-                sources[index] = source with { Warning = (source.Warning + " Archive sessions were skipped because this title appears more than once in the CSV.").Trim() };
-                continue;
+                // The archive stores titles without edition IDs. An exact, unique CSV finish can disambiguate a session.
+                sessions = source.Finished is { } date && sameTitle.Count(row => row.Finished == date) == 1
+                    ? sessions.Where(session => session.Completed && session.Finished == date).ToArray() : [];
+                if (sessions.Length == 0)
+                {
+                    sources[index] = source with { Warning = (source.Warning + " Archive sessions were skipped because this title appears more than once in the CSV.").Trim() };
+                    continue;
+                }
             }
             var recentFinish = sessions.Where(session => session.Completed).MaxBy(session => session.Finished)?.Finished;
             sources[index] = source with
@@ -301,7 +326,7 @@ public static class GoodreadsImporter
         book.Title = source.Title;
         if (source.Author.Length > 0 && !source.Author.Equals("Unknown", StringComparison.OrdinalIgnoreCase)) book.Author = source.Author;
         book.OriginalYear = Year(source.Fields, "Original Publication Year") ?? book.OriginalYear;
-        if (source.Fields.ContainsKey("My Rating")) book.Rating = Number(source.Fields, "My Rating") is >= 1 and <= 5 and var stars ? stars : null;
+        if (CsvRating(source.Fields) is { } stars) book.Rating = stars;
         if (source.Fields.TryGetValue("My Review", out var review)) book.Review = review;
         var importedShelves = source.Shelves.Append(Field(source.Fields, "Exclusive Shelf"))
             .Where(shelf => shelf.Length > 0 && !StatusShelves.Contains(shelf) && !shelf.Equals(LegacyShelf, StringComparison.OrdinalIgnoreCase))
@@ -312,9 +337,12 @@ public static class GoodreadsImporter
 
         var edition = MatchEdition(book, current == null, source);
         var status = source.Status ?? (current == null ? ReadingStatus.Unclassified : book.Status);
+        if (current != null && ReadingRules.IsSpecialCollection(current.Status)) status = current.Status;
+        if (status == ReadingStatus.ToRead && book.RecommendationDismissed)
+            status = book.Status == ReadingStatus.ToRead ? ReadingStatus.Unclassified : book.Status;
         var completion = ApplyReading(book, edition, source, status);
         if (status is ReadingStatus.Read or ReadingStatus.ToRead or ReadingStatus.CurrentlyReading)
-            ApplyArchiveSessions(book, edition, source.Sessions ?? []);
+            ApplyArchiveSessions(book, edition, source.Sessions ?? [], status == ReadingStatus.Read);
         book.Status = status;
         if (status != ReadingStatus.ToRead) book.ReadNext = false;
         else if (source.Added is { } added) book.ToReadAddedAt = new DateTimeOffset(added.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
@@ -323,14 +351,14 @@ public static class GoodreadsImporter
         return book;
     }
 
-    private static void ApplyArchiveSessions(Book book, Edition edition, GoodreadsReadingArchive.Session[] sessions)
+    internal static void ApplyArchiveSessions(Book book, Edition edition, GoodreadsArchive.Session[] sessions, bool includeImprecise)
     {
-        // The CSV controls current status and the latest reported finish. Use explicit archive dates for additional history.
-        foreach (var session in sessions.Where(session => session.Completed && session.Finished != null)
-                     .OrderBy(session => session.Finished))
+        var completed = sessions.Where(session => session.Completed).ToArray();
+        var matched = new HashSet<Guid>();
+        foreach (var session in completed.Where(session => session.Finished.HasValue).OrderBy(session => session.Finished))
         {
             var reading = book.Readings.FirstOrDefault(item =>
-                item.Outcome == ReadingOutcome.Completed && item.Finished == session.Finished &&
+                item.Outcome == ReadingOutcome.Completed && !matched.Contains(item.Id) && item.Finished == session.Finished &&
                 (item.Started == null || session.Started == null || item.Started == session.Started));
             if (reading == null)
             {
@@ -338,6 +366,29 @@ public static class GoodreadsImporter
                 book.Readings.Add(reading);
             }
             reading.Started ??= session.Started;
+            matched.Add(reading.Id);
+        }
+        if (includeImprecise)
+        {
+            foreach (var session in completed.Where(session => session.Finished == null)
+                .OrderByDescending(session => session.FinishYear))
+            {
+                // A sole undated session does not establish a second reading beyond the CSV completion.
+                if (session.FinishYear == null && completed.Length < 2) continue;
+                var available = book.Readings.Where(reading => reading.Outcome == ReadingOutcome.Completed && !matched.Contains(reading.Id));
+                var reading = available.FirstOrDefault(item => item.CompletionYear == session.FinishYear &&
+                    (item.Started == null || session.Started == null || item.Started == session.Started));
+                if (reading == null && session.FinishYear.HasValue)
+                    reading = available.FirstOrDefault(item => item.CompletionYear == null && item.Started == null && item.Progress.Count == 0);
+                if (reading == null)
+                {
+                    reading = new Reading { EditionId = edition.Id, Outcome = ReadingOutcome.Completed };
+                    book.Readings.Add(reading);
+                }
+                if (reading.Finished == null) reading.ApproximateFinishYear = session.FinishYear;
+                if (reading.Finished == null || session.Started <= reading.Finished) reading.Started ??= session.Started;
+                matched.Add(reading.Id);
+            }
         }
         if (book.ActiveReading is { Started: null } active)
             active.Started = sessions.Where(session => !session.Completed).MaxBy(session => session.Started)?.Started;
@@ -376,12 +427,11 @@ public static class GoodreadsImporter
         var linked = history.FirstOrDefault(reading => reading.Id == book.Goodreads?.CompletionId);
         var date = legacy ? null : source.Finished;
         var completion = linked;
-        if (status == ReadingStatus.Read || (status is ReadingStatus.ToRead or ReadingStatus.CurrentlyReading &&
-            (date != null || source.ReadCount > 0)))
+        if (status == ReadingStatus.Read || (status is ReadingStatus.ToRead or ReadingStatus.CurrentlyReading && date != null))
         {
             var exact = date != null || legacy && source.Finished != null
                 ? history.FirstOrDefault(reading => reading.Finished == (date ?? source.Finished)) : null;
-            var placeholder = history.FirstOrDefault(reading => reading.Started == null && reading.Finished == null && reading.Progress.Count == 0);
+            var placeholder = history.FirstOrDefault(reading => reading.Started == null && reading.CompletionYear == null && reading.Progress.Count == 0);
             var reread = source.ReadCount is { } count && book.Goodreads is { } previous &&
                 Number(previous.Fields, "Read Count") is { } priorCount && count > priorCount && date != null && date != linked?.Finished;
             completion = exact ?? (reread ? null : linked ?? placeholder)
@@ -400,11 +450,12 @@ public static class GoodreadsImporter
                 }
                 completion.Outcome = ReadingOutcome.Completed;
             }
-            if (legacy) { completion.Started = null; completion.Finished = null; }
+            if (legacy) { completion.Started = null; completion.Finished = null; completion.ApproximateFinishYear = null; }
             else if (date != null || completion.Id == linked?.Id && book.Goodreads is { } previousSource &&
                 Field(previousSource.Fields, "Date Read").Length > 0)
             {
                 completion.Finished = date;
+                if (date != null) completion.ApproximateFinishYear = null;
                 if (completion.Started > date) completion.Started = null;
             }
         }
@@ -445,6 +496,8 @@ public static class GoodreadsImporter
 
     private static int? Number(Dictionary<string, string> fields, string key) =>
         int.TryParse(Field(fields, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : null;
+    internal static int? CsvRating(Dictionary<string, string> fields) =>
+        Number(fields, "My Rating") is >= 1 and <= 5 and var stars ? stars : null;
     internal static int? Year(Dictionary<string, string> fields, string key) => Number(fields, key) is not 0 and var year ? year : null;
 
     private static DateOnly? Date(Dictionary<string, string> fields, string key, List<string> warnings)

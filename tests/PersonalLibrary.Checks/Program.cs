@@ -109,7 +109,15 @@ try
     ReadingSectionChecks.Run(workspace, Check, Reject);
     CalibreChecks.Run(workspace, Check);
     BibliographyChecks.Run(workspace, Check);
+    await PublicBibliographyChecks.Run(workspace, Check);
     GoodreadsChecks.Run(workspace, Check);
+    GoodreadsRatingsChecks.Run(workspace, Check, Reject);
+    RecommendationChecks.Run(Check);
+    LibraryEditingChecks.Run(workspace, Check);
+    ReadingStatisticsChecks.Run(Check);
+    await PurchaseChecks.Run(workspace, Check);
+    EnrichmentChecks.Run(workspace, Check);
+    await EnrichmentChecks.Network(Check);
     LibraryCleanupChecks.Run(workspace, Check);
     await MetadataChecks.Run(Check);
     Console.WriteLine($"{passed} checks passed. Synthetic artifacts: {workspace}");

@@ -1,8 +1,24 @@
 namespace PersonalLibrary.Core;
 
-public enum ReadingStatus { ToRead, CurrentlyReading, Read, PartiallyRead, DidNotFinish, ReferenceOnly, Unclassified }
+public enum ReadingStatus { ToRead, CurrentlyReading, Read, PartiallyRead, DidNotFinish, ReferenceOnly, Unclassified, MusicBook, PhotographyArtBook }
 public enum ReadingOutcome { InProgress, Completed, PartiallyRead, DidNotFinish, Superseded }
 public enum ProgressUnit { Page, Percent }
+public enum PurchaseCondition { New, Used }
+public enum PurchaseCurrency { CAD, USD, JPY, EUR }
+
+public sealed class PhysicalCopy
+{
+    public int? PurchaseYear { get; set; }
+    public decimal? PurchasePrice { get; set; }
+    public PurchaseCurrency PaidCurrency { get; set; }
+    public string? PurchasedFrom { get; set; }
+    public PurchaseCondition? PurchaseCondition { get; set; }
+    public bool IsGift { get; set; }
+    public bool IsLibraryLoan { get; set; }
+    public bool Sold { get; set; }
+    public decimal? SoldFor { get; set; }
+    public PurchaseCurrency SaleCurrency { get; set; }
+}
 
 public sealed record ReadingSection(Guid Id, string Name)
 {
@@ -21,8 +37,47 @@ public sealed class Edition
     public int? PublicationYear { get; set; }
     public int? PageCount { get; set; }
     public string? CoverFile { get; set; }
+    public string? CoverSource { get; set; }
+    public string? CoverSourceIsbn { get; set; }
+    public bool CoverIsAlternateEdition { get; set; }
     public string? OpenLibraryEditionId { get; set; }
     public List<string> Holdings { get; set; } = [];
+    public decimal? Msrp { get; set; }
+    public PurchaseCurrency MsrpCurrency { get; set; }
+    public string? MsrpSource { get; set; }
+    public string? MsrpSourceIsbn { get; set; }
+    public bool MsrpIsEstimated { get; set; }
+    public decimal? PurchasePrice { get; set; }
+    public PurchaseCurrency PaidCurrency { get; set; }
+    public string? PurchasedFrom { get; set; }
+    public PurchaseCondition? PurchaseCondition { get; set; }
+    public bool IsGift { get; set; }
+    public bool IsLibraryLoan { get; set; }
+    public List<PhysicalCopy> PhysicalCopies { get; set; } = [];
+    public bool HasLegacyPurchase => PurchasePrice.HasValue || PurchaseCondition.HasValue || !string.IsNullOrWhiteSpace(PurchasedFrom) || IsGift || IsLibraryLoan;
+
+    public PhysicalCopy LegacyPurchase() => new()
+    {
+        PurchasePrice = PurchasePrice, PaidCurrency = PaidCurrency,
+        PurchasedFrom = PurchasedFrom, PurchaseCondition = PurchaseCondition, IsGift = IsGift, IsLibraryLoan = IsLibraryLoan
+    };
+
+    public void SetLegacyPurchase(PhysicalCopy purchase)
+    {
+        PurchasePrice = purchase.PurchasePrice;
+        PaidCurrency = purchase.PaidCurrency;
+        PurchasedFrom = purchase.PurchasedFrom;
+        PurchaseCondition = purchase.PurchaseCondition;
+        IsGift = purchase.IsGift;
+        IsLibraryLoan = purchase.IsLibraryLoan;
+    }
+
+    public void UpdatePhysicalHolding()
+    {
+        if (PhysicalCopies.Count == 0) return;
+        Holdings.RemoveAll(holding => holding == "Physical");
+        if (PhysicalCopies.Any(copy => !copy.Sold && !copy.IsLibraryLoan)) Holdings.Add("Physical");
+    }
 }
 
 public sealed class ProgressEntry
@@ -38,6 +93,9 @@ public sealed class Reading
     public Guid EditionId { get; set; }
     public DateOnly? Started { get; set; }
     public DateOnly? Finished { get; set; }
+    public int? ApproximateFinishYear { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int? CompletionYear => Finished?.Year ?? ApproximateFinishYear;
     public ReadingOutcome Outcome { get; set; }
     public List<ProgressEntry> Progress { get; set; } = [];
 }
@@ -61,6 +119,8 @@ public sealed class Book
     public GoodreadsReference? Goodreads { get; set; }
     public bool Excluded { get; set; }
     public bool ReadNext { get; set; }
+    public DateTimeOffset? RecommendationSnoozedUntil { get; set; }
+    public bool RecommendationDismissed { get; set; }
     public Guid? ReadingSectionId { get; set; }
     public int SortOrder { get; set; }
     public DateTimeOffset ToReadAddedAt { get; set; } = DateTimeOffset.Now;
@@ -82,8 +142,14 @@ public static class ReadingRules
         ReadingStatus.ToRead => "To read", ReadingStatus.CurrentlyReading => "Currently reading",
         ReadingStatus.Read => "Read", ReadingStatus.PartiallyRead => "Partially read",
         ReadingStatus.DidNotFinish => "Did not finish", ReadingStatus.Unclassified => "Unclassified",
+        ReadingStatus.MusicBook => "Music book", ReadingStatus.PhotographyArtBook => "Photography / art book",
         _ => "Reference only"
     };
+
+    public static bool IsSpecialCollection(ReadingStatus status) => status is ReadingStatus.MusicBook or ReadingStatus.PhotographyArtBook;
+
+    internal static bool CountsAsReading(Book book) =>
+        !book.Excluded && book.Status != ReadingStatus.ReferenceOnly && !IsSpecialCollection(book.Status);
 
     public static void Classify(Book book, ReadingStatus status)
     {
@@ -106,7 +172,11 @@ public static class ReadingRules
         if (outcome is { } value && book.Readings.All(reading => reading.Outcome != value))
             book.Readings.Add(new Reading { EditionId = book.SelectedEdition.Id, Outcome = value });
         book.Status = status;
-        if (status == ReadingStatus.ToRead) book.ToReadAddedAt = DateTimeOffset.Now;
+        if (status == ReadingStatus.ToRead)
+        {
+            book.ToReadAddedAt = DateTimeOffset.Now;
+            book.RecommendationDismissed = false;
+        }
         else book.ReadNext = false;
     }
 
@@ -123,6 +193,29 @@ public static class ReadingRules
         {
             if (edition.PageCount is <= 0) throw new InvalidOperationException("Page counts must be positive or blank.");
             if (edition.PublicationYear == 0) throw new InvalidOperationException("Use negative years for BCE; there is no year zero.");
+            PurchaseStatistics.ValidateAmount(edition.Msrp, "MSRP");
+            PurchaseStatistics.ValidateAmount(edition.PurchasePrice, "Purchase price");
+            if (!Enum.IsDefined(edition.MsrpCurrency) || !Enum.IsDefined(edition.PaidCurrency))
+                throw new InvalidOperationException("Choose CAD, USD, JPY, or EUR for each amount.");
+            if (edition.PurchaseCondition is { } condition && !Enum.IsDefined(condition))
+                throw new InvalidOperationException("Choose New, Used, or leave purchase condition blank.");
+            if (edition.IsGift && edition.IsLibraryLoan)
+                throw new InvalidOperationException("Choose gift or library for an individual copy.");
+            foreach (var copy in edition.PhysicalCopies)
+            {
+                if (copy.IsGift && copy.IsLibraryLoan || copy.IsLibraryLoan && copy.Sold)
+                    throw new InvalidOperationException("A library loan cannot be a gift or a sold copy.");
+                PurchaseStatistics.ValidateAmount(copy.PurchasePrice, "Purchase price");
+                PurchaseStatistics.ValidateAmount(copy.SoldFor, "Sold for");
+                if (copy.PurchaseYear is < 1 or > 9999)
+                    throw new InvalidOperationException("Use a four-digit purchase year or leave it blank.");
+                if (!Enum.IsDefined(copy.PaidCurrency) || !Enum.IsDefined(copy.SaleCurrency))
+                    throw new InvalidOperationException("Choose CAD, USD, JPY, or EUR for each amount.");
+                if (copy.PurchaseCondition is { } copyCondition && !Enum.IsDefined(copyCondition))
+                    throw new InvalidOperationException("Choose New, Used, or leave purchase condition blank.");
+                if (!copy.Sold && copy.SoldFor.HasValue)
+                    throw new InvalidOperationException("Mark the physical copy sold to enter a sale amount.");
+            }
         }
         if (book.OriginalYear == 0) throw new InvalidOperationException("Use negative years for BCE; there is no year zero.");
         if (book.Readings.Select(r => r.Id).Distinct().Count() != book.Readings.Count)
@@ -138,6 +231,9 @@ public static class ReadingRules
                 throw new InvalidOperationException("Reading edition or outcome is invalid.");
             if (reading.Started.HasValue && reading.Finished.HasValue && reading.Finished < reading.Started)
                 throw new InvalidOperationException("Finish date cannot precede start date.");
+            if (reading.ApproximateFinishYear is { } year && (year is < 1 or > 9999 || reading.Finished != null ||
+                reading.Outcome != ReadingOutcome.Completed || reading.Started?.Year > year))
+                throw new InvalidOperationException("A year-only finish must be valid, follow the start year, and belong to a completed reading.");
             if (reading.Outcome == ReadingOutcome.InProgress && reading.Finished.HasValue)
                 throw new InvalidOperationException("An active reading cannot have a finish date.");
             foreach (var progress in reading.Progress)
@@ -181,8 +277,11 @@ public static class ReadingRules
             ReadingOutcome.DidNotFinish => ReadingStatus.DidNotFinish, _ => ReadingStatus.PartiallyRead };
     }
 
-    public static int CompletedInYear(IEnumerable<Book> books, int year) => books.Where(b => !b.Excluded)
-        .Sum(b => b.Readings.Count(r => r.Outcome == ReadingOutcome.Completed && r.Finished?.Year == year));
+    internal static IEnumerable<Reading> CompletedReadings(Book book) =>
+        CountsAsReading(book) ? book.Readings.Where(reading => reading.Outcome == ReadingOutcome.Completed) : [];
+
+    public static int CompletedInYear(IEnumerable<Book> books, int year) =>
+        books.SelectMany(CompletedReadings).Count(reading => reading.CompletionYear == year);
 
     public static string ProgressText(Book book)
     {

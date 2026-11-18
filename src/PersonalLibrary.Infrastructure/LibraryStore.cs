@@ -265,6 +265,39 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    public void ApplyGoodreadsRatings(GoodreadsRatingsPreview preview)
+    {
+        lock (gate)
+        {
+            if (preview.Changes.Count == 0) return;
+            var books = Books();
+            if (books.Count != preview.Baseline.Count || books.Any(book =>
+                !preview.Baseline.TryGetValue(book.Id, out var expected) || book.UpdatedAt != expected))
+                throw new InvalidOperationException("Your library changed. Preview the Goodreads ratings again.");
+            Backup("pre-goodreads-ratings");
+            using var connection = Open();
+            using var transaction = connection.BeginTransaction();
+            using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = """
+                UPDATE books SET document = json_set(document, '$.Rating', $rating, '$.UpdatedAt', $updated)
+                WHERE id = $id AND json_extract(document, '$.Rating') IS NULL
+                """;
+            var id = update.Parameters.Add("$id", SqliteType.Text);
+            var rating = update.Parameters.Add("$rating", SqliteType.Integer);
+            update.Parameters.AddWithValue("$updated", DateTimeOffset.Now.ToString("O"));
+            foreach (var change in preview.Changes)
+            {
+                id.Value = change.BookId.ToString();
+                rating.Value = change.Stars;
+                if (update.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("A rating changed. Preview the Goodreads ratings again.");
+            }
+            transaction.Commit();
+            AutomaticBackup();
+        }
+    }
+
     public void ApplyCatalogMatches(CatalogMatchPreview preview)
     {
         lock (gate)
@@ -285,20 +318,25 @@ public sealed class LibraryStore : IDisposable
     }
 
     private static string RemovedCalibrePrefix(Guid libraryId) => $"calibre-removed:{libraryId:D}:";
+    private const string RemovedGoodreadsPrefix = "goodreads-removed:";
 
-    internal HashSet<Guid> RemovedCalibreBooks(Guid libraryId)
+    internal HashSet<Guid> RemovedCalibreBooks(Guid libraryId) =>
+        RemovedSourceIds(RemovedCalibrePrefix(libraryId)).Select(text => Guid.TryParse(text, out var id) ? id : Guid.Empty)
+            .Where(id => id != Guid.Empty).ToHashSet();
+
+    internal HashSet<string> RemovedGoodreadsBooks() => RemovedSourceIds(RemovedGoodreadsPrefix).ToHashSet(StringComparer.Ordinal);
+
+    private List<string> RemovedSourceIds(string prefix)
     {
         lock (gate)
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
-            var prefix = RemovedCalibrePrefix(libraryId);
             command.CommandText = "SELECT key FROM settings WHERE key LIKE $pattern";
             command.Parameters.AddWithValue("$pattern", prefix + "%");
             using var reader = command.ExecuteReader();
-            var ids = new HashSet<Guid>();
-            while (reader.Read())
-                if (Guid.TryParse(reader.GetString(0)[prefix.Length..], out var id)) ids.Add(id);
+            var ids = new List<string>();
+            while (reader.Read()) ids.Add(reader.GetString(0)[prefix.Length..]);
             return ids;
         }
     }
@@ -329,6 +367,8 @@ public sealed class LibraryStore : IDisposable
                 delete.ExecuteNonQuery();
                 if (byId[bookId].Calibre is { } source)
                     WriteSetting(connection, transaction, RemovedCalibrePrefix(source.LibraryId) + source.BookId.ToString("D"), "true");
+                if (byId[bookId].Goodreads is { } goodreads)
+                    WriteSetting(connection, transaction, RemovedGoodreadsPrefix + goodreads.BookId, "true");
             }
             transaction.Commit();
             foreach (var bookId in removed)
@@ -374,24 +414,37 @@ public sealed class LibraryStore : IDisposable
 
     public string BibliographyPath(Guid bookId) => Path.Combine(Profile, "bibliographies", bookId.ToString(), "bibliography.md");
     private string EpubBibliographyPath(Guid bookId) => Path.Combine(Path.GetDirectoryName(BibliographyPath(bookId))!, "epub-bibliography.json");
+    private string OnlineBibliographyPath(Guid bookId) => Path.Combine(Path.GetDirectoryName(BibliographyPath(bookId))!, "online-bibliography.json");
     public bool HasEpubBibliography(Guid bookId) => File.Exists(EpubBibliographyPath(bookId));
+    public bool HasOnlineBibliography(Guid bookId) => File.Exists(OnlineBibliographyPath(bookId));
 
-    public EpubBibliography? ReadEpubBibliography(Guid bookId)
+    public EpubBibliography? ReadEpubBibliography(Guid bookId) => ReadStructuredBibliography(EpubBibliographyPath(bookId));
+    public EpubBibliography? ReadOnlineBibliography(Guid bookId) => ReadStructuredBibliography(OnlineBibliographyPath(bookId));
+
+    private EpubBibliography? ReadStructuredBibliography(string path)
     {
         lock (gate)
         {
-            var path = EpubBibliographyPath(bookId);
             return File.Exists(path) ? JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json) : null;
         }
     }
 
-    public void SaveEpubBibliography(Guid bookId, EpubBibliography bibliography)
+    public void SaveEpubBibliography(Guid bookId, EpubBibliography bibliography) =>
+        SaveStructuredBibliography(bookId, EpubBibliographyPath(bookId), bibliography);
+
+    public void SaveOnlineBibliography(Guid bookId, EpubBibliography bibliography)
+    {
+        if (bibliography.OnlineSource == null || bibliography.Entries.Length == 0)
+            throw new InvalidOperationException("An online bibliography must include source information and bibliography text.");
+        SaveStructuredBibliography(bookId, OnlineBibliographyPath(bookId), bibliography);
+    }
+
+    private void SaveStructuredBibliography(Guid bookId, string path, EpubBibliography bibliography)
     {
         lock (gate)
         {
             if (!Books().Any(book => book.Id == bookId))
                 throw new InvalidOperationException("Save the book before attaching an extracted bibliography.");
-            var path = EpubBibliographyPath(bookId);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var temporary = path + ".tmp";
             try
@@ -415,7 +468,8 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
-    public BibliographyText SaveBibliography(Guid bookId, string text, string? expectedHash)
+    public BibliographyText SaveBibliography(Guid bookId, string text, string? expectedHash,
+        IReadOnlyList<string>? imageSources = null)
     {
         lock (gate)
         {
@@ -431,8 +485,31 @@ public sealed class LibraryStore : IDisposable
             if (File.Exists(path)) File.Copy(path, revision);
             else File.WriteAllText(Path.Combine(revisions, "original-paste.md"), text, new UTF8Encoding(false));
             var temp = path + ".tmp";
-            File.WriteAllText(temp, text, new UTF8Encoding(false));
-            File.Move(temp, path, true);
+            var addedSources = new List<string>();
+            try
+            {
+                File.WriteAllText(temp, text, new UTF8Encoding(false));
+                foreach (var source in imageSources ?? [])
+                {
+                    using var input = File.OpenRead(source);
+                    var hash = Convert.ToHexString(SHA256.HashData(input));
+                    input.Position = 0;
+                    var sourceDirectory = Path.Combine(Path.GetDirectoryName(path)!, "sources", hash);
+                    Directory.CreateDirectory(sourceDirectory);
+                    var target = Path.Combine(sourceDirectory, Path.GetFileName(source));
+                    if (File.Exists(target)) continue;
+                    using var copy = File.Open(target, FileMode.CreateNew);
+                    addedSources.Add(target);
+                    input.CopyTo(copy);
+                }
+                File.Move(temp, path, true);
+            }
+            catch
+            {
+                foreach (var added in addedSources) File.Delete(added);
+                throw;
+            }
+            finally { File.Delete(temp); }
             AutomaticBackup();
             return Bibliography(bookId);
         }

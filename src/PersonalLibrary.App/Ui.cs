@@ -70,7 +70,8 @@ internal static class Ui
                 bitmap.UriSource = new Uri(path); bitmap.EndInit(); bitmap.Freeze();
                 if (bitmap.PixelWidth <= 1 || bitmap.PixelHeight <= 1) continue;
                 return new Image { Source = bitmap, Width = width, Height = height, Stretch = Stretch.Uniform,
-                    ToolTip = edition.Id == book.SelectedEdition.Id ? null : $"Cover from {edition.Label}" };
+                    ToolTip = edition.CoverIsAlternateEdition ? "Published cover from another edition" :
+                        edition.Id == book.SelectedEdition.Id ? null : $"Cover from {edition.Label}" };
             }
             catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException) { }
         }

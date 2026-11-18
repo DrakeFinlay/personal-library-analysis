@@ -23,6 +23,7 @@ public sealed class CalibrePreview
     public int WithoutLocalFiles { get; internal set; }
     public int Covers { get; internal set; }
     public int PreviouslyRemoved { get; internal set; }
+    public int ComicsSkipped { get; internal set; }
 }
 
 public static class CalibreImporter
@@ -87,7 +88,15 @@ public static class CalibreImporter
                 var series = Text(reader, 6);
                 var tags = JsonSerializer.Deserialize<string[]>(Text(reader, 11)) ?? [];
                 var identifiers = JsonSerializer.Deserialize<string[]>(Text(reader, 12)) ?? [];
-                var files = (JsonSerializer.Deserialize<CalibreFile[]>(Text(reader, 13)) ?? [])
+                var sourceFiles = JsonSerializer.Deserialize<CalibreFile[]>(Text(reader, 13)) ?? [];
+                existing.TryGetValue(bookId, out var current);
+                if (current == null && (GoodreadsImporter.IsComicTitle(title) || tags.Any(tag => ComicTags.Contains(tag.Trim())) ||
+                    sourceFiles.Any(file => ComicFormats.Contains(file.Format))))
+                {
+                    preview.ComicsSkipped++;
+                    continue;
+                }
+                var files = sourceFiles
                     .Where(file => !Path.IsPathRooted(file.RelativePath))
                     .Select(file => file with { RelativePath = Path.Combine(path, file.RelativePath) })
                     .Where(file => ResolvePath(preview.Folder, file.RelativePath) != null).ToArray();
@@ -96,7 +105,6 @@ public static class CalibreImporter
                 var coverPath = ResolvePath(preview.Folder, Path.Combine(path, "cover.jpg"));
                 var cover = File.Exists(coverPath) ? File.ReadAllBytes(coverPath!) : null;
                 if (cover != null) preview.Covers++;
-                existing.TryGetValue(bookId, out var current);
                 var source = new CalibreMetadata(title, string.Join(", ", JsonSerializer.Deserialize<string[]>(Text(reader, 5)) ?? []),
                     Text(reader, 9), Text(reader, 8), PublicationYear(Text(reader, 3)), Text(reader, 7),
                     series, series.Length > 0 && !reader.IsDBNull(4) ? reader.GetDouble(4) : null,
@@ -132,8 +140,6 @@ public static class CalibreImporter
             edition.Label = "Calibre edition";
             book.SelectedEditionId = edition.Id;
             if (available) edition.Holdings.Add("Ebook");
-            book.Excluded = source.Tags.Any(tag => ComicTags.Contains(tag.Trim()))
-                || source.Files.Any(file => ComicFormats.Contains(file.Format));
         }
         var goodreads = book.Goodreads;
         var goodreadsAuthor = goodreads == null ? "" : GoodreadsImporter.Field(goodreads.Fields, "Author");
@@ -171,7 +177,8 @@ public static class CalibreImporter
         catch (ArgumentException) { return null; }
     }
 
-    private static readonly HashSet<string> ComicTags = new(["manga", "comic", "comics", "graphic novel", "graphic novels"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> ComicTags = new(["manga", "comic", "comics", "graphic novel", "graphic novels",
+        "manhwa", "manhua", "webtoon", "webtoons", "漫画", "マンガ", "コミック"], StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ComicFormats = new(["cbz", "cbr", "cb7", "cbc"], StringComparer.OrdinalIgnoreCase);
     private static string Text(SqliteDataReader reader, int field) => reader.IsDBNull(field) ? "" : reader.GetString(field);
     private static int? PublicationYear(string value) =>

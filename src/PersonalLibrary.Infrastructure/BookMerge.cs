@@ -20,7 +20,9 @@ internal static class BookMerge
         var preferred = book.Goodreads != null || other.Goodreads == null ? book : other;
         var alternate = preferred == book ? other : book;
         var active = book.ActiveReading ?? other.ActiveReading;
-        var meaningfulStatus = preferred.Status != ReadingStatus.Unclassified ? preferred : alternate;
+        var meaningfulStatus = ReadingRules.IsSpecialCollection(book.Status) ? book
+            : ReadingRules.IsSpecialCollection(other.Status) ? other
+            : preferred.Status != ReadingStatus.Unclassified ? preferred : alternate;
 
         book.Title = preferred.Title;
         book.Author = string.IsNullOrWhiteSpace(preferred.Author) || preferred.Author.Equals("Unknown", StringComparison.OrdinalIgnoreCase)
@@ -38,6 +40,10 @@ internal static class BookMerge
         }
         else if (active == null) book.ReadingSectionId ??= other.ReadingSectionId;
         book.ToReadAddedAt = meaningfulStatus.ToReadAddedAt;
+        book.RecommendationDismissed |= other.RecommendationDismissed;
+        if (book.RecommendationSnoozedUntil == null || other.RecommendationSnoozedUntil > book.RecommendationSnoozedUntil)
+            book.RecommendationSnoozedUntil = other.RecommendationSnoozedUntil;
+        if (book.RecommendationDismissed && book.Status == ReadingStatus.ToRead) Recommendations.Dismiss(book);
         book.ReadNext = book.Status == ReadingStatus.ToRead && (book.ReadNext || other.ReadNext);
         book.Excluded |= other.Excluded;
         book.Shelves.AddRange(other.Shelves);

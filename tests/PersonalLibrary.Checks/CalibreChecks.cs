@@ -33,7 +33,8 @@ internal static class CalibreChecks
             INSERT INTO library_id VALUES('b29e9f60-85d6-4f15-98c7-779de3cd9bd0');
             INSERT INTO books VALUES
               (1,'d36490cf-4132-42ec-933a-48d6e6925380','First book','Reader/First book (1)','2020-01-01 00:00:00+00:00',2.5),
-              (2,'35c75e2b-48ee-4f6d-9d20-2fd969855dc9','Synthetic comic','Comic (2)','0101-01-01 00:00:00+00:00',1);
+              (2,'35c75e2b-48ee-4f6d-9d20-2fd969855dc9','Synthetic comic','Comic (2)',NULL,1),
+              (4,'d36490cf-4132-42ec-933a-48d6e6925384','Unavailable book','Unavailable (4)','0101-01-01 00:00:00+00:00',1);
             INSERT INTO authors VALUES(1,'Sample Author'),(2,'Another Author');
             INSERT INTO books_authors_link VALUES(1,1,2),(2,1,1);
             INSERT INTO series VALUES(1,'Sample series');
@@ -46,29 +47,30 @@ internal static class CalibreChecks
             INSERT INTO comments VALUES(1,'<p>Plain &amp; simple</p>');
             INSERT INTO tags VALUES(1,'Unmapped genre'),(2,'Manga');
             INSERT INTO books_tags_link VALUES(1,1),(2,2);
-            INSERT INTO data VALUES(1,'EPUB','First book'),(2,'PDF','../../outside');
+            INSERT INTO data VALUES(1,'EPUB','First book'),(4,'PDF','../../outside');
             """);
         var hash = SHA256.HashData(File.ReadAllBytes(catalog));
         using var store = new LibraryStore(Path.Combine(workspace, "calibre-target"));
         var preview = CalibreImporter.Preview(store, folder);
-        check(preview.Added == 2 && preview.Covers == 1 && preview.WithoutLocalFiles == 1
+        check(preview.Added == 2 && preview.ComicsSkipped == 1 && preview.Covers == 1 && preview.WithoutLocalFiles == 1
             && store.Books().Count == 0 && store.Setting(CalibreImporter.FolderSetting, "") == "", "Calibre preview reads without applying");
         store.ApplyCalibre(preview);
         var books = store.Books();
         var first = books.Single(book => book.Title == "First book");
-        var comic = books.Single(book => book.Title == "Synthetic comic");
+        var unavailable = books.Single(book => book.Title == "Unavailable book");
         check(books.All(book => book.Status == ReadingStatus.Unclassified && book.Readings.Count == 0 && book.Shelves.Count == 0)
-            && comic.Excluded && comic.SelectedEdition.PublicationYear == null, "Calibre import leaves statuses and shelves unclassified and excludes explicit manga");
+            && books.All(book => book.Title != "Synthetic comic") && unavailable.SelectedEdition.PublicationYear == null,
+            "Calibre import leaves statuses and shelves unclassified and skips explicit manga");
         check(first.Author == "Another Author, Sample Author" && first.SelectedEdition.PublicationYear == 2020
             && first.OriginalYear == null && first.SelectedEdition.Isbn == "9781234567890"
-            && first.SelectedEdition.Publisher == "Sample Press" && comic.SelectedEdition.Publisher == null
+            && first.SelectedEdition.Publisher == "Sample Press" && unavailable.SelectedEdition.Publisher == null
             && first.SelectedEdition.Holdings.Contains("Ebook") && first.SelectedEdition.PageCount == null,
             "Calibre edition fields and ebook ownership preserve missing values");
         var source = first.Calibre!;
         check(source.Metadata.SeriesIndex == 2.5 && source.Metadata.Publisher == "Sample Press"
             && source.Metadata.Description == "Plain & simple" && source.Metadata.Tags.SequenceEqual(["Unmapped genre"])
             && File.Exists(CalibreImporter.ResolvePath(source.LibraryFolder, source.Metadata.Files.Single().RelativePath))
-            && comic.Calibre!.Metadata.Files.Length == 0, "Calibre source details and scoped file links");
+            && unavailable.Calibre!.Metadata.Files.Length == 0, "Calibre source details and scoped file links");
         check(File.Exists(store.CoverPath(first.SelectedEdition)) && hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(catalog)))
             && store.Setting(CalibreImporter.FolderSetting, "") == folder, "Import copies cover and saves connection without modifying Calibre");
         check(CalibreImporter.Preview(store, folder).Unchanged == 2, "Re-refresh is idempotent");
@@ -93,7 +95,7 @@ internal static class CalibreChecks
             UPDATE books SET title='Revised in Calibre' WHERE id=1;
             UPDATE authors SET name='Corrected Author' WHERE id=2;
             UPDATE publishers SET name='Revised Calibre Press' WHERE id=1;
-            DELETE FROM books WHERE id=2;
+            DELETE FROM books WHERE id=4;
             INSERT INTO books VALUES (3,'3574d58d-a6cd-4023-bd8a-650551ec5b2b','New on refresh','New (3)',NULL,1);
             """);
         File.WriteAllBytes(sourceCover, [9, 8, 7]);
@@ -136,13 +138,20 @@ internal static class CalibreChecks
         updated = store.Books().Single(book => book.Id == first.Id);
         check(updated.Title == "Revised in Calibre" && updated.Author == "Corrected Author, Sample Author" &&
             updated.Calibre!.Metadata.Title == "Another Calibre title", "Calibre refresh keeps authoritative Goodreads fields and updates its own source snapshot");
+        ReadingRules.Classify(updated, ReadingStatus.MusicBook);
+        store.Save(updated);
+        store.ApplyGoodreads(GoodreadsImporter.Preview(store, goodreadsPath));
+        updated = store.Books().Single(book => book.Id == first.Id);
+        check(updated.Status == ReadingStatus.MusicBook && updated.Readings.Count == 1,
+            "A Goodreads refresh preserves a locally assigned collection category and its reading history");
         store.SaveBibliography(updated.Id, "Synthetic notes for removal", null);
         var removed = store.RemoveBooks([updated]);
         var afterRemoval = CalibreImporter.Preview(store, folder);
+        var afterGoodreadsRemoval = GoodreadsImporter.Preview(store, goodreadsPath);
         check(removed.Removed == 1 && store.Books().All(book => book.Id != updated.Id)
             && !File.Exists(store.BibliographyPath(updated.Id)) && afterRemoval.PreviouslyRemoved == 1
-            && afterRemoval.Added == 0 && File.Exists(catalog),
-            "Personal-only removal archives notes and prevents Calibre refresh from re-adding the book");
+            && afterRemoval.Added == 0 && afterGoodreadsRemoval.Added == 0 && afterGoodreadsRemoval.Skipped == 1 && File.Exists(catalog),
+            "Personal-only removal archives notes and prevents Calibre or Goodreads refresh from re-adding the book");
     }
 
     private static void Write(string catalog, string sql)

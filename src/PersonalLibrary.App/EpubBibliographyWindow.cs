@@ -17,9 +17,10 @@ internal sealed class EpubBibliographyWindow : Window
     private static string CitationLabel(EpubCitation citation) => citation.Title.Length == 0 ? citation.Text
         : citation.Author.Length == 0 ? citation.Title : $"{citation.Title} — {citation.Author}";
 
-    public EpubBibliographyWindow(LibraryStore store, Book book, EpubBibliography bibliography)
+    public EpubBibliographyWindow(LibraryStore store, Book book, EpubBibliography bibliography,
+        EpubCitation? selectedCitation = null, bool showAlternate = true)
     {
-        Title = book.Title + " — EPUB bibliography";
+        Title = book.Title + " — Bibliography";
         Style = (Style)Application.Current.FindResource(typeof(Window));
         Width = 1060;
         Height = 740;
@@ -31,6 +32,28 @@ internal sealed class EpubBibliographyWindow : Window
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
         header.Children.Add(Ui.Heading(book.Title));
+        header.Children.Add(Ui.Text(book.Author, 14, "MutedBrush"));
+        var actions = new WrapPanel();
+        header.Children.Add(actions);
+        var onlineSource = bibliography.OnlineSource;
+        if (onlineSource != null && Uri.TryCreate(onlineSource.ItemUrl, UriKind.Absolute, out var sourcePage))
+            actions.Children.Add(Ui.Button("Open Internet Archive edition", () => PublicBibliographyWindow.OpenArchivePage(sourcePage)));
+        if (showAlternate)
+        {
+            var alternate = onlineSource == null ? store.ReadOnlineBibliography(book.Id) : store.ReadEpubBibliography(book.Id);
+            if (alternate != null)
+                actions.Children.Add(Ui.Button(onlineSource == null ? "Browse online bibliography" : "Browse local EPUB bibliography", () =>
+                    new EpubBibliographyWindow(store, book, alternate, showAlternate: false) { Owner = this }.ShowDialog()));
+        }
+        var personal = Ui.Button("Open pasted or scanned text", () =>
+            new BibliographyTextWindow(store, book) { Owner = this }.ShowDialog());
+        personal.Visibility = store.Bibliography(book.Id).Hash == null ? Visibility.Collapsed : Visibility.Visible;
+        actions.Children.Add(personal);
+        actions.Children.Add(Ui.Button("Add or edit text…", () =>
+        {
+            if (new BibliographyTextWindow(store, book, startEditing: true) { Owner = this }.ShowDialog() == true)
+                personal.Visibility = Visibility.Visible;
+        }));
         var library = store.Books().Where(candidate => candidate.Id != book.Id && !candidate.Excluded)
             .Select(candidate => (Book: candidate, Title: Normalize(candidate.Title),
                 ShortTitle: Normalize(candidate.Title.Split(':', 2)[0]), Author: $" {Normalize(candidate.Author)} ")).ToArray();
@@ -45,7 +68,9 @@ internal sealed class EpubBibliographyWindow : Window
                 .Select(item => item.Book).ToArray();
             return new Row(citation, matches);
         }).ToArray();
-        header.Children.Add(Ui.Text($"{rows.Length} citations · {rows.Count(row => row.Matches.Length > 0)} with possible local matches · {bibliography.SourceFile}", 14, "MutedBrush"));
+        var sourceLabel = onlineSource == null ? bibliography.SourceFile
+            : string.Join(" · ", new[] { onlineSource.Provider, onlineSource.Title, onlineSource.Date }.Where(value => value.Length > 0));
+        header.Children.Add(Ui.Text($"{rows.Length} citations · {rows.Count(row => row.Matches.Length > 0)} with possible local matches · {sourceLabel}", 14, "MutedBrush"));
         if (bibliography.UnreadableDocuments > 0)
             header.Children.Add(Ui.Text($"{bibliography.UnreadableDocuments} EPUB documents could not be read.", 13, "MutedBrush"));
         foreach (var note in bibliography.IntroductoryNotes) header.Children.Add(Ui.Text(note, 13, "MutedBrush"));
@@ -110,6 +135,11 @@ internal sealed class EpubBibliographyWindow : Window
         matchesOnly.Click += (_, _) => Populate();
         Content = root;
         Populate();
+        if (selectedCitation != null && rows.FirstOrDefault(row => row.Citation == selectedCitation) is { } selected)
+        {
+            list.SelectedItem = selected;
+            list.ScrollIntoView(selected);
+        }
     }
 
     private static string Normalize(string value)

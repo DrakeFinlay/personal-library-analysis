@@ -4,4 +4,5 @@
     <UseWPF>true</UseWPF><AssemblyName>PersonalLibrary</AssemblyName>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../PersonalLibrary.Infrastructure/PersonalLibrary.Infrastructure.csproj" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="BibliographyOcr.ps1" LogicalName="PersonalLibrary.BibliographyOcr.ps1" /></ItemGroup>
 </Project>

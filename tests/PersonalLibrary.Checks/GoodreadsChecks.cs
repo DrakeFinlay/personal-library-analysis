@@ -105,6 +105,13 @@ internal static class GoodreadsChecks
             reread.Shelves.SequenceEqual(new[] { "local shelf", "history" }), "A later Goodreads reread adds its supplied date and reconciles removed source shelves");
         check(GoodreadsImporter.Preview(store, path).Updated == 0, "The updated reread import is idempotent");
 
+        Recommendations.Dismiss(toRead);
+        store.Save(toRead);
+        store.ApplyGoodreads(GoodreadsImporter.Preview(store, path));
+        var dismissed = store.Books().Single(book => book.Id == toRead.Id);
+        check(dismissed.Status == ReadingStatus.Unclassified && dismissed.RecommendationDismissed && dismissed.Goodreads != null,
+            "Goodreads refresh preserves a local Not interested choice on an imported To read book");
+
         var stale = GoodreadsImporter.Preview(store, path);
         store.Save(new Book { Title = "Added after preview" });
         var rejected = false;
@@ -126,14 +133,18 @@ internal static class GoodreadsChecks
         using var store = new LibraryStore(Path.Combine(workspace, "goodreads-archive-target"));
         var csv = Path.Combine(workspace, "reading-archive.csv");
         File.WriteAllText(csv, """
-            Book Id,Title,Author,Exclusive Shelf,Date Read,Bookshelves
-            100,Coastal History,Example Writer,read,2025/04/09,
-            101,Already Read,Example Writer,read,2024/01/02,read-b4-goodreads
-            102,New Reading,Example Writer,currently-reading,,
-            103,Shared Title,Example Writer,read,,
-            104,Shared Title,Different Writer,read,,
-            105,Partial Reading,Example Writer,read,2024/03/04,partially-read
-            106,Japanese Reading,Example Writer,to-read-in-japanese,,
+            Book Id,Title,Author,Exclusive Shelf,Date Read,Bookshelves,Read Count
+            100,Coastal History,Example Writer,read,2025/04/09,,2
+            101,Already Read,Example Writer,read,2024/01/02,read-b4-goodreads,1
+            102,New Reading,Example Writer,currently-reading,,,
+            103,Shared Title,Example Writer,read,,,
+            104,Shared Title,Different Writer,read,,,
+            105,Partial Reading,Example Writer,read,2024/03/04,partially-read,1
+            106,Japanese Reading,Example Writer,to-read-in-japanese,,,
+            107,Reduced Precision,Example Writer,read,2025/04/09,,3
+            108,Unfinished Queue,Example Writer,to-read,,,1
+            109,Repeated Title,First Writer,read,2015/01/11,,1
+            110,Repeated Title,Second Writer,read,2026/09/27,,1
             """);
         var path = Path.Combine(workspace, "reading-archive.zip");
         using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
@@ -150,7 +161,13 @@ internal static class GoodreadsChecks
                       {"book":"Already Read","state":"COMPLETED","ended_at":"2024-01-02 00:00:00 UTC"},
                       {"book":"New Reading","state":"READING","started_at":"2025-01-11 00:00:00 UTC","ended_at":"(not provided)"},
                       {"book":"Shared Title","state":"COMPLETED","ended_at":"2023-01-02 00:00:00 UTC"},
-                      {"book":"Partial Reading","state":"COMPLETED","ended_at":"2024-03-04 00:00:00 UTC"}
+                      {"book":"Partial Reading","state":"COMPLETED","ended_at":"2024-03-04 00:00:00 UTC"},
+                      {"book":"Reduced Precision","state":"COMPLETED","ended_at":"2025-04-09 00:00:00 UTC"},
+                      {"book":"Reduced Precision","state":"COMPLETED","ended_at":"2019"},
+                      {"book":"Reduced Precision","state":"COMPLETED","ended_at":"(not provided)"},
+                      {"book":"Unfinished Queue","state":"COMPLETED","ended_at":"(not provided)"},
+                      {"book":"Repeated Title","state":"COMPLETED","started_at":"2015-01-07 00:00:00 UTC","ended_at":"2015-01-11 00:00:00 UTC"},
+                      {"book":"Repeated Title","state":"COMPLETED","started_at":"2026-05-12 00:00:00 UTC","ended_at":"2026-09-27 00:00:00 UTC"}
                     ]
                     """);
             }
@@ -170,7 +187,19 @@ internal static class GoodreadsChecks
               && books.Single(book => book.Title == "Partial Reading").Readings.Single().Outcome == ReadingOutcome.PartiallyRead,
             "Goodreads archive restores dated rereads and current starts while respecting legacy and partial shelves");
         var again = GoodreadsImporter.Preview(store, csv, path);
-        check(again.Unchanged == 7, "Repeating a Goodreads import with reading sessions leaves history unchanged");
+        check(again.Unchanged == 11, "Repeating a Goodreads import with reading sessions leaves history unchanged");
+        var precision = books.Single(book => book.Title == "Reduced Precision");
+        precision.OriginalYear = 1900;
+        var stats = new ReadingStatistics([precision]);
+        check(precision.Readings.Count == 3 && stats.UndatedCompletions == 1 && stats.YearOnlyCompletions == 1 &&
+              stats.Years.Select(year => year.Year).SequenceEqual([2025, 2019]) && stats.PublicationPoints.Count == 1 &&
+              ReadingRules.CompletedInYear([precision], 2019) == 1,
+            "Year-only and undated archived rereads are preserved without inventing exact scatterplot dates");
+        check(books.Single(book => book.Title == "Unfinished Queue").Readings.Count == 0,
+            "A contradictory Goodreads count and undated archive session do not create a completion on a To read book");
+        check(books.Single(book => book.Author == "First Writer").Readings.Single().Started == new DateOnly(2015, 1, 7) &&
+              books.Single(book => book.Author == "Second Writer").Readings.Single().Started == new DateOnly(2026, 5, 12),
+            "An exact unique finish matches archive sessions to the correct Goodreads row when titles repeat");
         var japanese = books.Single(book => book.Title == "Japanese Reading");
         check(japanese.Status == ReadingStatus.ToRead && japanese.Shelves.Contains("to-read-in-japanese"),
             "The Japanese to-read shelf keeps its name and contributes to To read");
