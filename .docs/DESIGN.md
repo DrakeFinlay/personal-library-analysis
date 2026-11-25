@@ -50,7 +50,7 @@ Anki writes or integration are included in the initial releases.
 ## 3. Screens and everyday use
 
 Primary navigation: **Home, My Books, Recommendations, Bibliographies, Statistics,
-Settings**. Later screens may be present only once their functionality is useful.
+Goals, Settings**. Later screens may be present only once their functionality is useful.
 
 ### Home
 
@@ -65,18 +65,25 @@ custom sections are in use. Move books from their cards and reorder them within
 each section. Section membership is a personal preference on the book and
 persists across rereads. Removing a section returns its books to Other books.
 
-Smaller sections contain:
+The sidebar shows **Recently changed books**: the ten most recently saved books
+across reading statuses, excluding out-of-scope records. Reading updates, edits,
+imports, and batch saves count as changes. Cards open the book editor.
+Currently-reading books retain manual order. The Read next interface is retired.
 
-- Annual book challenge: goal, completed count, and progress.
-- Read next: a deliberately maintained short queue with cover thumbnails.
-- Recently added to to-read: cover thumbnails for the last ten books added to that shelf, newest first.
+### Goals
 
-Proposed defaults: allow manual order for currently-reading and read-next books;
-starting a queued book removes it from read next. The recent-to-read section uses
-shelf-addition time, not catalog-creation time, and omits books now read, currently
-reading, or excluded. Imported entries without a reliable shelf-addition date use
-their available Goodreads date-added value with its provenance, falling back to
-import time; do not present that fallback as a historical fact.
+Goals is available in the top navigation. Its primary feature is a yearly list
+of specific titles the reader chooses from My Books. Each title can occur once
+per year and can be planned in multiple years. A completed reading in the selected
+year marks that title complete once, including a reread or year-only completion.
+Undated history does not count. Removing a title from a year preserves its book
+and reading history. Imported updates preserve plans; merges combine both books'
+planned years. Excluded books are hidden and special collections do not count as
+completed reads. Add missing titles through the regular add-book workflow first.
+
+The existing optional numeric annual reading challenge lives below the title
+list, with its target editor, rather than on Home or in Settings. It counts all
+eligible completed readings, independently of the title list.
 
 ### My Books and book details
 
@@ -593,8 +600,8 @@ multi-computer SQLite synchronization is promised.
 Deliver normal Windows launch, isolated synthetic profile, light/dark themes,
 library search, list and cover views, and book/edition editing, ownership, flat shelves,
 reading/rereading records, page/percentage updates, whole-star ratings, reviews
-and private notes. Include the reading-focused Home, read-next queue, recent ten
-to-read additions, annual challenge, pasted Markdown bibliographies, and backup/
+and private notes. Include the reading-focused Home, recently changed books,
+yearly title lists and annual challenge in Goals, pasted Markdown bibliographies, and backup/
 restore. Show covers in the Home sidebar and My Books. Book covers and page counts
 can be set manually. Show a placeholder for books without a cover.
 

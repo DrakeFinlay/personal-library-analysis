@@ -16,7 +16,7 @@ internal sealed class BookEditor : Window
     private readonly TextBox title, author, year, shelves, rating, review, notes, bibliography;
     private readonly TextBox editionLabel, isbn, publisher, language, editionYear, pages;
     private readonly TextBox msrp;
-    private readonly CheckBox physical, ebook, audio, readNext, excluded;
+    private readonly CheckBox physical, ebook, audio, excluded;
     private readonly ComboBox editionPicker;
     private readonly ComboBox msrpCurrency;
     private readonly StackPanel copyFields = new();
@@ -59,7 +59,6 @@ internal sealed class BookEditor : Window
         year = Ui.Input(metadata, "Original publication year (negative for BCE; blank if unknown)", book.OriginalYear?.ToString() ?? "");
         shelves = Ui.Input(metadata, "Shelves (comma separated)", string.Join(", ", book.Shelves));
         ShelfSuggestions.Attach(shelves, store.Books().SelectMany(savedBook => savedBook.Shelves));
-        readNext = Check(metadata, "Add to Read next", book.ReadNext);
         excluded = Check(metadata, "Excluded content (manga/comics or outside this library's scope)", book.Excluded);
         metadata.Children.Add(Ui.Heading("Editions & ownership", 23));
         editionPicker = new ComboBox { DisplayMemberPath = "Label", ItemsSource = book.Editions, SelectedItem = editingEdition };
@@ -570,7 +569,6 @@ internal sealed class BookEditor : Window
         CaptureEdition(); book.Title = title.Text; book.Author = author.Text; book.OriginalYear = OptionalInt(year.Text, "Original year");
         book.Shelves = shelves.Text.Split(',').ToList(); book.Rating = OptionalInt(rating.Text, "Rating");
         book.Review = review.Text; book.Notes = notes.Text; book.Excluded = excluded.IsChecked == true;
-        book.ReadNext = readNext.IsChecked == true && book.Status == ReadingStatus.ToRead;
         foreach (var (id, start, finish) in readingDates)
         {
             var reading = book.Readings.Single(r => r.Id == id);
@@ -599,7 +597,7 @@ internal sealed class BookEditor : Window
         SaveAll();
         book.Readings = candidate.Readings; book.Status = candidate.Status; book.ReadNext = candidate.ReadNext;
         book.ToReadAddedAt = candidate.ToReadAddedAt;
-        store.Save(book); readNext.IsChecked = book.ReadNext; RenderReading(); changed = false;
+        store.Save(book); RenderReading(); changed = false;
     }
 
     private void RenderReading()

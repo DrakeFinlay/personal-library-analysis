@@ -37,7 +37,20 @@ Keep the accompanying binaries, notices, and license files together.
 ## Using the first build
 
 Switch between List and Covers in My Books. The search and filters apply to both
-views. The Home sidebar also shows cover thumbnails for queued and recent books.
+views. The Home sidebar shows the ten most recently changed books across reading
+statuses, newest save first. Select a title to open it. Imports and batch saves
+also count as changes; excluded books are omitted.
+
+Open **Goals** in the top navigation to maintain **Reads for [year]**. Search by
+title or author, then select **Add: [title]** to include a book from My Books.
+For a missing title, use **+ Add a book** first. Each title appears once per year;
+the same title can be planned in multiple years. Enter a year and select **Show
+year** to review another year's list. Open a planned title to update its reading.
+A completed reading dated in that year (including a year-only date or reread)
+marks it complete. Undated history does not. **Remove from year** only removes
+the plan entry and keeps the book and reading history. Plans save immediately.
+The optional numeric **reading challenge** and **Save goal** are below the list
+in Goals, independent of your chosen titles. Existing annual targets are kept.
 
 In **Book & editions**, you can enter an ISBN with or without hyphens. For
 **Download metadata**, `978-1433-58475-6` and `9781433584756` are equivalent.
@@ -77,12 +90,12 @@ are saved separately.
 
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.
-Use a blank date for undated reading history. Set shelves, Read next, ratings,
+Use a blank date for undated reading history. Set shelves, ratings,
 reviews, and private notes in the editor. Paste references in Bibliography to save
 a Markdown document in the profile. Reading actions save immediately; other edits
 save with Save & close. History dates also save with Save & close.
 
-Settings provides light/dark modes, the annual goal, profile/backup folder access,
+Settings provides light/dark modes, profile/backup folder access,
 manual backup, and validated restore preview. Daily backups happen after changes;
 14 daily and 4 weekly archives are retained. Manual/pre-restore archives are kept.
 Backup errors are shown without discarding saved changes. Each backup includes the

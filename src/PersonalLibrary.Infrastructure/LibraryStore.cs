@@ -112,6 +112,20 @@ public sealed class LibraryStore : IDisposable
 
     public void Save(Book book) => SaveBatch([book]);
 
+    public void PlanReading(Guid bookId, int year, bool include)
+    {
+        if (year is < 1 or > 9999) throw new InvalidOperationException("Enter a year from 1 to 9999.");
+        lock (gate)
+        {
+            var book = Books().Find(book => book.Id == bookId && !book.Excluded)
+                ?? throw new InvalidOperationException("This book is no longer available in My Books.");
+            if (book.PlannedReadingYears.Contains(year) == include) return;
+            if (include) book.PlannedReadingYears.Add(year);
+            else book.PlannedReadingYears.RemoveAll(value => value == year);
+            Save(book);
+        }
+    }
+
     public IReadOnlyList<ReadingSection> ReadingSections() =>
         JsonSerializer.Deserialize<ReadingSection[]>(Setting(ReadingSectionsKey, "null"), Json) ?? [DailyReads];
 

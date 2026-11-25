@@ -21,6 +21,7 @@ Book NewBook(string title) { var book = new Book { Title = title }; book.Selecte
 
 try
 {
+    GoalChecks.Run(workspace, Check, Reject);
     var book = NewBook("Synthetic coastal history");
     ReadingRules.Start(book, new DateOnly(2025, 12, 20));
     Check(book.Status == ReadingStatus.CurrentlyReading && book.ActiveReading?.Progress.Count == 0,

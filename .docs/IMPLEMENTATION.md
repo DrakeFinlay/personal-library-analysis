@@ -576,6 +576,34 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - The Release build completed with no warnings or errors, and the regular
   Windows launcher build was published successfully.
 
+## Home sidebar and annual title plans
+
+- Home now shows the ten most recently saved books across reading statuses,
+  newest first, excluding out-of-scope books. Reading updates, metadata edits,
+  imports, batch saves, and annual plan changes can move a book into this list.
+- Read next has been removed from Home and the book editor. Legacy saved queue
+  fields remain readable for compatibility. The numeric reading challenge and
+  target editor have moved from Home/Settings to the new top-navigation Goals page.
+  Existing annual targets are preserved.
+- Goals offers a separate Reads for [year] list. Search My Books by title or
+  author to add a title; add missing books through + Add a book first. Show year
+  switches lists. Each title occurs once per year and may belong to multiple
+  years. Open a title to update its reading; Remove from year preserves the book
+  and all reading history. Plans save immediately and merge with duplicate books.
+- Completion is derived from an eligible completed reading in the selected year,
+  including year-only dates and rereads. A title counts once in its list, while
+  the separate numeric challenge still counts each completed reading. Undated
+  history and special collections do not satisfy annual completion.
+- All 171 synthetic checks passed, covering plan persistence, duplicate adds,
+  year removal, history preservation, completion attribution, merging, and recent
+  ordering across statuses. The Release build passed with no warnings or errors;
+  the regular self-contained Windows publish succeeded after closing the test app.
+  The isolated TEST PROFILE verified Home's revised sidebar, adding a planned
+  title, switching to a separate year's empty list, and persistence after relaunch
+  in the published build. No personal data was used.
+- Plans use existing library titles and alphabetical order; manual ordering and
+  free-text titles outside My Books are not included.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

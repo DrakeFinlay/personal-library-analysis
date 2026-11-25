@@ -27,6 +27,7 @@ public sealed class MainWindow : Window
     private ScrollViewer? recommendationsScroll;
     private ScrollViewer? bibliographiesScroll;
     private StatisticsPage? statisticsPage;
+    private int goalsYear = DateTime.Today.Year;
     private int busyCount;
     private LibraryDisplay libraryDisplay = new();
     private readonly TextBlock message = Ui.Text("");
@@ -49,7 +50,7 @@ public sealed class MainWindow : Window
         var add = Ui.Button("+ Add a book", AddBook, true); DockPanel.SetDock(add, Dock.Right); header.Children.Add(add);
         header.Children.Add(Ui.Heading("personal library", 31)); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 18) };
-        foreach (var name in new[] { "Home", "My Books", "Recommendations", "Bibliographies", "Statistics", "Settings" })
+        foreach (var name in new[] { "Home", "My Books", "Recommendations", "Bibliographies", "Statistics", "Goals", "Settings" })
             nav.Children.Add(Ui.Button(name, () => { activePage = name; RefreshPage(); }));
         DockPanel.SetDock(nav, Dock.Top); root.Children.Add(nav);
         message.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
@@ -69,7 +70,7 @@ public sealed class MainWindow : Window
         {
             "My Books" => libraryPage ??= Library(), "Recommendations" => RecommendationsPage(),
             "Bibliographies" => Bibliographies(), "Statistics" => Statistics(),
-            "Settings" => SettingsPage(), _ => Home()
+            "Goals" => Goals(), "Settings" => SettingsPage(), _ => Home()
         };
     }
 
@@ -140,16 +141,8 @@ public sealed class MainWindow : Window
         homeReadingScroll = Ui.Scroll(reading);
         homeReadingScroll.ScrollToVerticalOffset(offset);
         columns.Children.Add(homeReadingScroll);
-        var sidebar = new StackPanel(); var challenge = new StackPanel();
-        var year = DateTime.Today.Year; var goal = GetGoal(year); var count = ReadingRules.CompletedInYear(books, year);
-        challenge.Children.Add(Ui.Text($"{year} READING CHALLENGE", 12, "MutedBrush"));
-        challenge.Children.Add(Ui.Heading($"{count} / {goal} books", 29));
-        challenge.Children.Add(new ProgressBar { Minimum = 0, Maximum = goal, Value = count, Height = 8, Margin = new Thickness(0, 8, 0, 12) });
-        challenge.Children.Add(Ui.Text("Completed readings this year. Rereads count; undated history stays outside the calendar.", 13, "MutedBrush"));
-        challenge.Children.Add(Ui.Button("Change goal", () => { activePage = "Settings"; RefreshPage(); }));
-        sidebar.Children.Add(Ui.Card(challenge));
-        AddShortList(sidebar, "Read next", books.Where(b => !b.Excluded && b.ReadNext && b.Status == ReadingStatus.ToRead), true);
-        AddShortList(sidebar, "Recently added to to-read", books.Where(b => !b.Excluded && b.Status == ReadingStatus.ToRead).OrderByDescending(b => b.ToReadAddedAt).Take(10), false);
+        var sidebar = new StackPanel();
+        AddShortList(sidebar, "Recently changed books", ReadingGoals.RecentlyChanged(books));
         var scroll = Ui.Scroll(sidebar); Grid.SetColumn(scroll, 1); columns.Children.Add(scroll); return columns;
     }
 
@@ -205,28 +198,13 @@ public sealed class MainWindow : Window
         return button;
     }
 
-    private void AddShortList(Panel parent, string title, IEnumerable<Book> source, bool reorder)
+    private void AddShortList(Panel parent, string title, IEnumerable<Book> source)
     {
         var panel = new StackPanel(); panel.Children.Add(Ui.Heading(title, 21)); var items = source.ToList();
         if (items.Count == 0) panel.Children.Add(Ui.Text("No books here yet.", 13, "MutedBrush"));
         foreach (var book in items)
         {
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            if (reorder)
-            {
-                var moves = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
-                foreach (var (symbol, direction, offset) in new[] { ("↑", "up", -1), ("↓", "down", 1) })
-                {
-                    var move = Ui.Button(symbol, () => Move(book, items, offset));
-                    move.Padding = new Thickness(7, 2, 7, 2);
-                    move.Margin = new Thickness(0, 2, 0, 2);
-                    AutomationProperties.SetName(move, $"Move {book.Title} {direction}");
-                    moves.Children.Add(move);
-                }
-                DockPanel.SetDock(moves, Dock.Right);
-                row.Children.Add(moves);
-            }
-
             var button = Ui.Button(book.Title, () => Edit(book));
             button.Padding = new Thickness(7);
             button.Margin = new Thickness(0);
@@ -958,7 +936,7 @@ public sealed class MainWindow : Window
         public string Label => $"{Book.Title} · {Book.Author}";
     }
 
-    private int GetGoal(int year) => int.TryParse(store.Setting("goal-" + year, "24"), out var value) && value > 0 ? value : 24;
+    private UIElement Goals() => new GoalsPage(store, books, Edit, goalsYear, year => goalsYear = year);
 
     private UIElement SettingsPage()
     {
@@ -966,13 +944,6 @@ public sealed class MainWindow : Window
         panel.Children.Add(Ui.Heading("Make yourself at home"));
         var themes = new WrapPanel(); themes.Children.Add(Ui.Button("Light mode", () => { store.SetSetting("theme", "light"); App.ApplyTheme(false); }));
         themes.Children.Add(Ui.Button("Dark mode", () => { store.SetSetting("theme", "dark"); App.ApplyTheme(true); })); panel.Children.Add(themes);
-        var year = DateTime.Today.Year;
-        var goal = Ui.Input(panel, $"{year} annual book goal", GetGoal(year).ToString());
-        panel.Children.Add(Ui.Button("Save goal", () =>
-        {
-            if (!int.TryParse(goal.Text, out var target) || target < 1 || target > 100000) throw new InvalidOperationException("Enter a goal from 1 to 100,000.");
-            store.SetSetting("goal-" + year, target.ToString()); message.Text = "Reading goal saved.";
-        }, true));
         panel.Children.Add(CalibreSettings());
         panel.Children.Add(GoodreadsSettings());
         panel.Children.Add(CatalogSettings());

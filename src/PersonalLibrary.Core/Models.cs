@@ -119,6 +119,7 @@ public sealed class Book
     public GoodreadsReference? Goodreads { get; set; }
     public bool Excluded { get; set; }
     public bool ReadNext { get; set; }
+    public List<int> PlannedReadingYears { get; set; } = [];
     public DateTimeOffset? RecommendationSnoozedUntil { get; set; }
     public bool RecommendationDismissed { get; set; }
     public Guid? ReadingSectionId { get; set; }
