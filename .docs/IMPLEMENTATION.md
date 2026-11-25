@@ -676,6 +676,38 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   displayed saved note/status/reading changes, including both completed readings
   and their reread transitions, with before/after values in the history viewer.
 
+## Goodreads To-read order and library-addition dates
+
+- Books have optional To-read position and Date added fields, editable in Book &
+  editions and visible in the table. My Books defaults to numeric rank ascending
+  from 1; Descending reverses it. Unknown ranks remain last. Date/Title/Author
+  sorting remains available and applies before the 50-result limit.
+- Goodreads reads the canonical to-read shelf's position from Bookshelves with
+  positions and its Date Added value. Source-managed values refresh while local
+  edits, including explicit blanks, survive imports and merges. Dates remain
+  independent of status changes and last-edit timestamps. New local books get
+  today's addition date; older undated records are not assigned invented dates.
+- Settings offers a targeted preview/recovery from retained Goodreads fields. It
+  verifies a backup, updates only rank/date/change time in SQLite, records the
+  changes in book history, rejects stale previews, and is idempotent. Other shelf
+  positions, invalid dates, and unlinked books remain unknown.
+- All 204 synthetic checks passed, including numeric reversal, missing values,
+  sorting before pagination, exact field preservation, stale/repeat recovery,
+  source refresh, and local overrides through merges. The Release build passed
+  without warnings/errors and the regular Windows launcher build was published.
+  An isolated TEST PROFILE verified positions 1 upward and reversed from 65,
+  displayed dates, editable fields, and the before/after history viewer.
+- The authorized normal-profile recovery filled 112 canonical To-read positions
+  and 482 Date Added values across 482 books. All 759 book identities and every
+  unrelated saved field were preserved exactly; existing profile files were
+  hash-checked as unchanged. Verified migration and recovery backups were created.
+  The journal contains 759 starting snapshots and 482 recovery events. An independent
+  read-back against those snapshots verified the changes; a repeat preview is empty.
+- The remaining 117 To-read positions are unknown: 110 books have no Goodreads
+  link and seven use the separate Japanese To-read shelf without a canonical
+  to-read position. Their source fields are retained and no global ranks were
+  fabricated. These counts describe this recovery and can change with later edits.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

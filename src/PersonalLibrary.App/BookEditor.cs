@@ -16,6 +16,7 @@ internal sealed class BookEditor : Window
     private readonly TextBox title, author, year, shelves, groups, rating, review, notes, bibliography;
     private readonly TextBox editionLabel, isbn, publisher, language, editionYear, pages;
     private readonly TextBox msrp;
+    private readonly TextBox toReadPosition, dateAdded;
     private readonly CheckBox physical, ebook, audio, excluded;
     private readonly ComboBox editionPicker;
     private readonly ComboBox msrpCurrency;
@@ -63,6 +64,8 @@ internal sealed class BookEditor : Window
         groups = Ui.Input(metadata, "To-read groups (comma separated)", string.Join(", ", book.ToReadGroups));
         ShelfSuggestions.Attach(groups, store.LibraryNames(groups: true));
         groups.ToolTip = "Create your own groups, for example Research for a book. A book can belong to several groups. Clear this field to remove all its groups.";
+        toReadPosition = Ui.Input(metadata, "To-read position (1 or higher; blank if unknown)", book.ToReadPosition?.ToString() ?? "");
+        dateAdded = Ui.Input(metadata, "Date added to library (YYYY-MM-DD; blank if unknown)", book.DateAdded?.ToString("yyyy-MM-dd") ?? "");
         excluded = Check(metadata, "Excluded content (manga/comics or outside this library's scope)", book.Excluded);
         metadata.Children.Add(Ui.Heading("Editions & ownership", 23));
         editionPicker = new ComboBox { DisplayMemberPath = "Label", ItemsSource = book.Editions, SelectedItem = editingEdition };
@@ -573,6 +576,11 @@ internal sealed class BookEditor : Window
         CaptureEdition(); book.Title = title.Text; book.Author = author.Text; book.OriginalYear = OptionalInt(year.Text, "Original year");
         book.Shelves = shelves.Text.Split(',').ToList(); book.Rating = OptionalInt(rating.Text, "Rating");
         book.ToReadGroups = groups.Text.Split(',').ToList();
+        var position = OptionalInt(toReadPosition.Text, "To-read position");
+        var added = OptionalDate(dateAdded.Text);
+        if (position != book.ToReadPosition) book.ToReadPositionIsLocal = true;
+        if (added != book.DateAdded) book.DateAddedIsLocal = true;
+        book.ToReadPosition = position; book.DateAdded = added;
         book.Review = review.Text; book.Notes = notes.Text; book.Excluded = excluded.IsChecked == true;
         foreach (var (id, start, finish) in readingDates)
         {

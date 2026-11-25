@@ -1,5 +1,7 @@
 namespace PersonalLibrary.Core;
 
+public enum LibrarySort { ToReadPosition, DateAdded, Title, Author }
+
 public sealed record LibraryDisplay(int Columns = 10, int TitleSize = 18, int DetailSize = 14)
 {
     public LibraryDisplay Validated() => new(Math.Clamp(Columns, 1, 20), Math.Clamp(TitleSize, 12, 32), Math.Clamp(DetailSize, 10, 24));

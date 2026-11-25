@@ -30,7 +30,7 @@ internal static class BrowsingChecks
         var all = store.Browse(new(Status: null, Limit: null));
         check(all.Books.Count == 1999 && store.Browse(new(Status: null, ShowExcluded: true, Limit: null)).Total == 2000,
             "All statuses and excluded-record controls remain independent of the result limit");
-        var descending = store.Browse(new(Descending: true));
+        var descending = store.Browse(new(Descending: true, Sort: LibrarySort.Title));
         check(string.CompareOrdinal(descending.Books[0].Title, descending.Books[^1].Title) > 0,
             "Sorting is applied before the first-50 database limit");
         var saved = store.FindBook(books[6].Id)!;

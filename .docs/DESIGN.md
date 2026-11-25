@@ -96,7 +96,15 @@ The table virtualizes rows and loads no cover images. Optional title/author/ISBN
 search lives under Find a specific book. Clicking a cover in bulk edit toggles its selection.
 My Books keeps the current search, filters, selections, and scroll position when
 the book editor closes. Refresh library reloads the saved records in that view.
-The table sorts by title/author and opens rows with a double-click or Enter.
+The table defaults to numeric To-read position ascending, with a reversible
+direction control. Unknown positions sort last in both directions. Position,
+Date added, Title, and Author headers are sortable. Date added is an optional
+library-addition date independent of the last-change timestamp and shelf changes.
+Both fields are editable. Local corrections survive future imports. Goodreads
+supplies the canonical to-read shelf's position and its Date Added field;
+unrelated shelf positions are not global priority ranks. Recovery from saved
+source fields fills missing values only after a verified backup and records the
+changes. The table opens rows with a double-click or Enter.
 Covers show available selected-edition images and placeholders. Cover Flow is later work.
 
 User-named to-read groups overlap independently of shelves. The editor saves

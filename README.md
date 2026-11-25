@@ -39,8 +39,14 @@ Keep the accompanying binaries, notices, and license files together.
 My Books starts with **To read** in a compact text **Table**, loading the first
 50 matching books. Choose a status on the far left, then a shelf or user-defined
 to-read group above the table. **Show all books** loads the full filtered range.
+It sorts by **To-read position** from 1 upward; **Descending** reverses the order.
+The table shows **Date added** as well. Both fields can be edited in Book & editions.
 **Covers** remains optional. See [library browsing and groups](.docs/LIBRARY-BROWSING.md)
 for selection, sorting, and group-assignment steps.
+
+For older Goodreads imports, **Settings → Recover saved Goodreads order and
+dates…** previews missing values retained in the saved export fields and fills
+them after creating a verified backup.
 
 The Home sidebar shows the ten most recently changed books across reading
 statuses, newest save first. Select a title to open it. Imports and batch saves

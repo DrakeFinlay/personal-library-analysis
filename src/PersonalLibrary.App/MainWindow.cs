@@ -244,7 +244,7 @@ public sealed class MainWindow : Window
     private UIElement Library()
     {
         var showCovers = false;
-        var sortByAuthor = false;
+        var sortMode = LibrarySort.ToReadPosition;
         var sortDescending = false;
         var updatingSort = false;
         var root = new DockPanel(); var top = new StackPanel();
@@ -324,11 +324,11 @@ public sealed class MainWindow : Window
         var sortLabel = Ui.Text("Sort by", 13, "MutedBrush");
         sortLabel.Margin = new Thickness(0, 8, 8, 0);
         sort.Children.Add(sortLabel);
-        var sortField = new ComboBox { ItemsSource = new[] { "Title", "Author" }, SelectedIndex = sortByAuthor ? 1 : 0, Width = 120 };
+        var sortField = new ComboBox { ItemsSource = new[] { "To-read position", "Date added", "Title", "Author" }, SelectedIndex = (int)sortMode, Width = 165 };
         AutomationProperties.SetName(sortField, "Sort by");
         sort.Children.Add(sortField);
-        var ascending = new RadioButton { Content = "A → Z", IsChecked = !sortDescending, Style = (Style)FindResource("StatusFilter"), Margin = new Thickness(8, 3, 6, 12) };
-        var descending = new RadioButton { Content = "Z → A", IsChecked = sortDescending, Style = (Style)FindResource("StatusFilter"), Margin = new Thickness(0, 3, 0, 12) };
+        var ascending = new RadioButton { Content = "Ascending ↑", IsChecked = !sortDescending, Style = (Style)FindResource("StatusFilter"), Margin = new Thickness(8, 3, 6, 12) };
+        var descending = new RadioButton { Content = "Descending ↓", IsChecked = sortDescending, Style = (Style)FindResource("StatusFilter"), Margin = new Thickness(0, 3, 0, 12) };
         AutomationProperties.SetName(ascending, "Ascending sort order");
         AutomationProperties.SetName(descending, "Descending sort order");
         sort.Children.Add(ascending);
@@ -505,8 +505,8 @@ public sealed class MainWindow : Window
             var pageResult = store.Browse(new LibraryQuery(statusFilter,
                 shelf.SelectedIndex > 0 ? shelf.SelectedItem as string : null,
                 groups.SelectedIndex > 0 ? groups.SelectedItem as string : null,
-                search.Text, sortByAuthor, sortDescending, excluded.IsChecked == true,
-                missingCover.IsChecked == true, showAll ? null : 50));
+                search.Text, false, sortDescending, excluded.IsChecked == true,
+                missingCover.IsChecked == true, showAll ? null : 50, sortMode));
             matches = pageResult.Books;
             resultSummary.Text = $"{matches.Count} of {pageResult.Total} matching books  ·  ";
             showAllButton.Content = showAll ? "Show first 50" : "Show all books";
@@ -522,16 +522,16 @@ public sealed class MainWindow : Window
             Func<Book, CheckBox>? selector = bulkEdit.IsChecked == true ? SelectBook : null;
             selectionBoxes.Clear();
             results.Content = showCovers ? LibraryCovers(matches, selector) : LibraryTable.Create(matches, bulkEdit.IsChecked == true,
-                selected, UpdateSelection, Edit, byAuthor =>
+                selected, UpdateSelection, Edit, value =>
                 {
-                    if (sortByAuthor == byAuthor) sortDescending = !sortDescending;
-                    else { sortByAuthor = byAuthor; sortDescending = false; }
+                    if (sortMode == value) sortDescending = !sortDescending;
+                    else { sortMode = value; sortDescending = false; }
                     updatingSort = true;
-                    sortField.SelectedIndex = sortByAuthor ? 1 : 0;
+                    sortField.SelectedIndex = (int)sortMode;
                     ascending.IsChecked = !sortDescending; descending.IsChecked = sortDescending;
                     updatingSort = false;
                     Populate();
-                }, sortByAuthor, sortDescending);
+                }, sortMode, sortDescending);
         }
         foreach (var (button, value) in statusButtons)
             button.Checked += (_, _) => { statusFilter = value; showAll = false; Populate(); };
@@ -540,7 +540,7 @@ public sealed class MainWindow : Window
         search.TextChanged += (_, _) => { searchDelay.Stop(); searchDelay.Start(); };
         shelf.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
         groups.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
-        sortField.SelectionChanged += (_, _) => { if (!updatingSort) { sortByAuthor = sortField.SelectedIndex == 1; Populate(); } };
+        sortField.SelectionChanged += (_, _) => { if (!updatingSort) { sortMode = (LibrarySort)sortField.SelectedIndex; Populate(); } };
         ascending.Checked += (_, _) => { if (!updatingSort) { sortDescending = false; Populate(); } };
         descending.Checked += (_, _) => { if (!updatingSort) { sortDescending = true; Populate(); } };
         excluded.Click += (_, _) => Populate();
@@ -959,6 +959,16 @@ public sealed class MainWindow : Window
         themes.Children.Add(Ui.Button("Dark mode", () => { store.SetSetting("theme", "dark"); App.ApplyTheme(true); })); panel.Children.Add(themes);
         panel.Children.Add(CalibreSettings());
         panel.Children.Add(GoodreadsSettings());
+        panel.Children.Add(Ui.Button("Recover saved Goodreads order and dates…", () =>
+        {
+            var preview = GoodreadsOrder.Preview(store.Books());
+            if (preview.Changes.Length == 0)
+            { MessageBox.Show(this, "No missing positions or dates can be recovered from the saved Goodreads fields.", "Goodreads order"); return; }
+            if (MessageBox.Show(this, $"Recover {preview.Positions} To-read positions and {preview.Dates} dates across {preview.Changes.Length} books?\n\nOnly missing fields are filled. A verified backup is created first. {preview.MissingToReadPositions} To-read books have no saved canonical position.",
+                "Recover saved Goodreads order", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            var backup = store.ApplyGoodreadsOrder(preview); libraryPage = null;
+            RefreshPage(); message.Text = $"Recovered Goodreads order and dates. Backup: {backup}";
+        }));
         panel.Children.Add(CatalogSettings());
         panel.Children.Add(Ui.Heading("Your local profile", 23));
         panel.Children.Add(Ui.Text(store.Profile, 13, "MutedBrush"));

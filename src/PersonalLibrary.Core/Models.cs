@@ -121,6 +121,10 @@ public sealed class Book
     public bool Excluded { get; set; }
     public bool ReadNext { get; set; }
     public List<int> PlannedReadingYears { get; set; } = [];
+    public int? ToReadPosition { get; set; }
+    public DateOnly? DateAdded { get; set; }
+    public bool ToReadPositionIsLocal { get; set; }
+    public bool DateAddedIsLocal { get; set; }
     public DateTimeOffset? RecommendationSnoozedUntil { get; set; }
     public bool RecommendationDismissed { get; set; }
     public Guid? ReadingSectionId { get; set; }
@@ -219,6 +223,7 @@ public static class ReadingRules
                     throw new InvalidOperationException("Mark the physical copy sold to enter a sale amount.");
             }
         }
+        if (book.ToReadPosition is <= 0) throw new InvalidOperationException("To-read position must be a whole number of at least 1, or blank.");
         if (book.OriginalYear == 0) throw new InvalidOperationException("Use negative years for BCE; there is no year zero.");
         if (book.Readings.Select(r => r.Id).Distinct().Count() != book.Readings.Count)
             throw new InvalidOperationException("Reading identities must be unique.");

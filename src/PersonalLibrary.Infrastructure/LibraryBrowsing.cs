@@ -5,7 +5,7 @@ namespace PersonalLibrary.Infrastructure;
 
 public sealed record LibraryQuery(ReadingStatus? Status = ReadingStatus.ToRead, string? Shelf = null,
     string? Group = null, string Search = "", bool ByAuthor = false, bool Descending = false,
-    bool ShowExcluded = false, bool MissingCover = false, int? Limit = 50);
+    bool ShowExcluded = false, bool MissingCover = false, int? Limit = 50, LibrarySort Sort = LibrarySort.ToReadPosition);
 public sealed record LibraryResults(List<Book> Books, int Total);
 
 public sealed partial class LibraryStore
@@ -67,9 +67,14 @@ public sealed partial class LibraryStore
             command.Parameters.AddWithValue("$search", query.Search.Trim()); command.Parameters.AddWithValue("$missing", query.MissingCover);
             command.CommandText = "SELECT count(*) FROM books " + where;
             var total = Convert.ToInt32(command.ExecuteScalar());
-            var field = query.ByAuthor ? "Author" : "Title";
+            var sort = query.ByAuthor ? LibrarySort.Author : query.Sort;
+            if (!Enum.IsDefined(sort)) throw new InvalidOperationException("Choose a library sort order.");
+            var field = sort.ToString();
             var direction = query.Descending ? "DESC" : "ASC";
-            command.CommandText = $"SELECT document FROM books {where} ORDER BY json_extract(document,'$.{field}') COLLATE NOCASE {direction}, json_extract(document,'$.Title') COLLATE NOCASE, id LIMIT $limit";
+            var value = sort == LibrarySort.ToReadPosition
+                ? "CASE WHEN json_extract(document,'$.Status')='ToRead' THEN json_extract(document,'$.ToReadPosition') END"
+                : $"json_extract(document,'$.{field}')";
+            command.CommandText = $"SELECT document FROM books {where} ORDER BY ({value}) IS NULL, ({value}) COLLATE NOCASE {direction}, json_extract(document,'$.Title') COLLATE NOCASE, id LIMIT $limit";
             command.Parameters.AddWithValue("$limit", query.Limit is { } limit ? Math.Max(1, limit) : -1);
             using var reader = command.ExecuteReader(); var books = new List<Book>();
             while (reader.Read()) books.Add(DecodeBook(reader.GetString(0)));

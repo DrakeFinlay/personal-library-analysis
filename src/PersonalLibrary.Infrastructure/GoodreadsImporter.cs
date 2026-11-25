@@ -323,6 +323,7 @@ public static class GoodreadsImporter
     {
         var book = current == null ? new Book() : LibraryStore.Clone(current);
         var prior = book.Goodreads;
+        GoodreadsOrder.ApplySource(book, prior, source.Fields);
         book.Title = source.Title;
         if (source.Author.Length > 0 && !source.Author.Equals("Unknown", StringComparison.OrdinalIgnoreCase)) book.Author = source.Author;
         book.OriginalYear = Year(source.Fields, "Original Publication Year") ?? book.OriginalYear;

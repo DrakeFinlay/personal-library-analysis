@@ -196,6 +196,7 @@ public sealed partial class LibraryStore : IDisposable
                 if (JsonSerializer.Serialize(oldBook, Json) == JsonSerializer.Serialize(candidate, Json))
                 { book.UpdatedAt = oldBook.UpdatedAt; continue; }
             }
+            else if (book.Goodreads == null && book.Calibre == null) book.DateAdded ??= DateOnly.FromDateTime(DateTime.Today);
             book.UpdatedAt = DateTimeOffset.Now;
             document.Value = JsonSerializer.Serialize(book, Json);
             command.ExecuteNonQuery();

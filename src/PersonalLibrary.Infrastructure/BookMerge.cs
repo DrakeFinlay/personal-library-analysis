@@ -40,6 +40,10 @@ internal static class BookMerge
         }
         else if (active == null) book.ReadingSectionId ??= other.ReadingSectionId;
         book.ToReadAddedAt = meaningfulStatus.ToReadAddedAt;
+        if (!book.ToReadPositionIsLocal && book.ToReadPosition == null)
+        { book.ToReadPosition = other.ToReadPosition; book.ToReadPositionIsLocal = other.ToReadPositionIsLocal; }
+        if (!book.DateAddedIsLocal && (book.DateAdded == null || other.DateAdded < book.DateAdded))
+        { book.DateAdded = other.DateAdded; book.DateAddedIsLocal = other.DateAddedIsLocal; }
         book.RecommendationDismissed |= other.RecommendationDismissed;
         if (book.RecommendationSnoozedUntil == null || other.RecommendationSnoozedUntil > book.RecommendationSnoozedUntil)
             book.RecommendationSnoozedUntil = other.RecommendationSnoozedUntil;
