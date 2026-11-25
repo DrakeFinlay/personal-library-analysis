@@ -50,6 +50,7 @@ internal sealed class BookEditor : Window
         var bottom = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
         bottom.Children.Add(Ui.Button("Save & close", () => { SaveAll(); allowClose = true; Close(); }, true));
         bottom.Children.Add(Ui.Button("Cancel / close", Close)); DockPanel.SetDock(bottom, Dock.Bottom); root.Children.Add(bottom);
+        bottom.Children.Add(Ui.Button("Change history", () => new BookChangesWindow(store, book) { Owner = this }.ShowDialog()));
         var tabs = new TabControl(); root.Children.Add(tabs); Content = root;
         var metadata = new StackPanel { Margin = new Thickness(10) };
         var download = Ui.Button("Find metadata or a cover…", DownloadMetadata);

@@ -106,6 +106,12 @@ reviews, and private notes in the editor. Paste references in Bibliography to sa
 a Markdown document in the profile. Reading actions save immediately; other edits
 save with Save & close. History dates also save with Save & close.
 
+Select **Change history** at the bottom of a book's editor to inspect saved
+before-and-after values for edits, status changes, readings/rereads, imports, and
+bibliographies. Existing profiles get a verified migration backup and a starting
+snapshot; earlier edit history cannot be reconstructed. See
+[book change history](.docs/CHANGE-HISTORY.md) for coverage and backup behavior.
+
 Settings provides light/dark modes, profile/backup folder access,
 manual backup, and validated restore preview. Daily backups happen after changes;
 14 daily and 4 weekly archives are retained. Manual/pre-restore archives are kept.

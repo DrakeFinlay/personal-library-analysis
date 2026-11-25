@@ -147,6 +147,7 @@ internal static class CalibreChecks
         check(updated.Status == ReadingStatus.MusicBook && updated.Readings.Count == 1,
             "A Goodreads refresh preserves a locally assigned collection category and its reading history");
         store.SaveBibliography(updated.Id, "Synthetic notes for removal", null);
+        updated = store.FindBook(updated.Id)!;
         var removed = store.RemoveBooks([updated]);
         var afterRemoval = CalibreImporter.Preview(store, folder);
         var afterGoodreadsRemoval = GoodreadsImporter.Preview(store, goodreadsPath);

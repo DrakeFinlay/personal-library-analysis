@@ -198,6 +198,14 @@ Each reading/rereading has its own optional start and finish dates, outcome,
 edition, and progress entries. Work-level status summarizes the current state
 without overwriting past readings. A reread creates a new reading record.
 
+Every saved book change retains a timestamp and before/after snapshots in a
+separate SQLite history table, accessible through Change history in the editor.
+This covers metadata, classification, reading/progress/reread actions, imports,
+merges, removals, and bibliography saves. Unchanged saves create no event.
+Existing profiles begin at an explicitly labelled current-state baseline after
+a verified migration backup; historical edits are not fabricated. History is
+included in profile backups and stays out of normal paged browsing queries.
+
 Books read before Goodreads may be marked read with unknown dates. The
 `read-b4-goodreads` shelf is a migration input: transfer its books into the broader
 read status with undated reading history, then remove the active legacy shelf.

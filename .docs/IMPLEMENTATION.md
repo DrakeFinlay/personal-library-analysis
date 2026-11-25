@@ -655,6 +655,27 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   The Release build passed without warnings/errors, and the regular Windows
   launcher build was published. No personal data was used.
 
+## Per-book saved change history
+
+- Schema 2 adds an indexed SQLite journal of book creation, updates, and removals
+  with before/after snapshots. Database triggers include specialized SQL ratings
+  updates as well as normal/batch saves and imports. Merges retain both histories
+  under the surviving book. The journal is separate from paged library records.
+- Change history at the bottom of the book editor shows dated events and field
+  differences, loading 100 entries at a time. Bibliography text/structured-source
+  edits and new retained images have their own detail and update the source book's
+  timestamp. Unchanged saves preserve timestamps and create no artificial events.
+- Existing profiles get a verified pre-history-migration backup and a Tracking
+  started snapshot. Schema 1 backups remain restorable and are upgraded before
+  further writes. Backups include the journal; restore returns to that timeline.
+- Synthetic checks cover starts/progress/finishes/rereads, field details, no-op
+  saves, failed batches, attachment edits, merge history, paging, backup/restore,
+  and migration of old profiles. History before this upgrade and external file
+  edits cannot be reconstructed. See [CHANGE-HISTORY.md](CHANGE-HISTORY.md).
+- The Release build passed with no warnings/errors. An isolated TEST PROFILE
+  displayed saved note/status/reading changes, including both completed readings
+  and their reread transitions, with before/after values in the history viewer.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

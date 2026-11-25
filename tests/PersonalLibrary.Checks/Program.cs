@@ -22,6 +22,7 @@ Book NewBook(string title) { var book = new Book { Title = title }; book.Selecte
 try
 {
     GoalChecks.Run(workspace, Check, Reject);
+    BookChangeChecks.Run(workspace, Check, Reject);
     BrowsingChecks.Run(workspace, Check);
     LocalCitationChecks.Run(workspace, Check);
     var book = NewBook("Synthetic coastal history");
