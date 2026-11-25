@@ -17,7 +17,7 @@ internal static class BibliographyGraphChecks
         var fromCase = new[] { Cite(philosophers, "Historian. Fictional Philosophers. Synthetic Press, 2021.") };
         var remote = new EpubCitation(2, "References", "An external reference.", "An External Work", "Theo Invented", "source.md", null);
         var data = new Dictionary<Guid, EpubCitation[]> {
-            [philosophers.Id] = fromPhilosophers.Concat([remote]).ToArray(), [caseBook.Id] = fromCase,
+            [philosophers.Id] = fromPhilosophers.Concat([remote, remote with { Title = "A Single-Source Leaf", Text = "A one-off reference." }]).ToArray(), [caseBook.Id] = fromCase,
             [other.Id] = [epicCitation, remote with { Author = "Invented, Theo" }], [excluded.Id] = [epicCitation]
         };
         Book[] library = [epic, philosophers, caseBook, other, excluded];
@@ -39,10 +39,20 @@ internal static class BibliographyGraphChecks
         check(graph.Neighborhood(Key(epic), 2, 2).Keys.Length == 2 && graph.Neighborhood(Key(epic), 2, 2).Omitted > 0 && graph.Statistics().Single(r => r.Work.BookId == epic.Id).CitingBooks == 2,
             "Graph display limits report omissions without limiting corpus-wide citation statistics");
         check(graph.SourceBooks == 3 && !graph.Nodes.ContainsKey(Key(excluded)), "Excluded sources do not contribute graph nodes or citation counts");
+        var shared = graph.SharedNetwork();
+        check(!shared.Nodes.Values.Any(node => node.Title == "A Single-Source Leaf") && shared.Path(Key(epic), Key(caseBook)).Length == 3 &&
+            shared.Nodes.ContainsKey(Key(other)) && shared.CitedBy(Key(epic)).Length == 2,
+            "Shared visualization excludes one-source leaves while preserving parallel sources and singly cited bridges in deep chains");
+        var single = BibliographyGraph.Build(library, id => id == philosophers.Id ? fromPhilosophers : []);
+        check(single.SharedNetwork().Nodes.Count == 0 && single.SharedNetwork().Connections.Length == 0 && single.Statistics().Single().EvidencePassages == 2,
+            "Repeated mentions in one bibliography do not create a visualization and remain available in full statistics");
         data[epic.Id] = [Cite(caseBook, "A cyclic citation."), Cite(epic, "Self-reference.")];
         var cyclic = BibliographyGraph.Build(library, id => data.GetValueOrDefault(id) ?? []);
         check(cyclic.Neighborhood(Key(epic), 8).Keys.Distinct().Count() == cyclic.Nodes.Count && !cyclic.Connections.Any(e => e.Source == e.Target),
             "Cycles terminate and self references do not create artificial graph loops");
+        var sharedCycle = cyclic.SharedNetwork();
+        check(sharedCycle.Connections.Length == sharedCycle.Connections.Select(edge => (edge.Source, edge.Target)).Distinct().Count() && sharedCycle.Path(Key(epic), Key(caseBook)).Length > 0,
+            "Shared-network projection terminates through cycles and retains each directed connection once");
         var sameTitle = new Book { Title = epic.Title, Author = "Another Fictional" };
         var ambiguous = BibliographyGraph.Build(library.Concat([sameTitle]).ToArray(), id => id == philosophers.Id ? [epicCitation with { Author = "Fictional" }] : []);
         check(ambiguous.Connections.Single().Target.StartsWith("cited:") && ambiguous.Nodes[ambiguous.Connections.Single().Target].Identity.Contains("Ambiguous"),
@@ -54,7 +64,9 @@ internal static class BibliographyGraphChecks
         check(graph.Path(Key(epic), "absent").Length == 0 && BibliographyGraph.Build([], _ => []).Statistics().Length == 0,
             "Empty graphs and unknown path endpoints are handled without fabricated connections");
         using var store = new LibraryStore(System.IO.Path.Combine(workspace, "graph-snapshot")); store.SaveBatch(library);
-        store.SaveEpubBibliography(philosophers.Id, new("synthetic.epub", "hash", [], [epicCitation, remote], 0));
+        store.SaveEpubBibliography(philosophers.Id, new("synthetic.epub", "hash", [], [epicCitation, remote,
+            remote with { Title = "A Single-Source Leaf", Text = "First single-source evidence." },
+            remote with { Title = "A Single-Source Leaf", Text = "Second single-source evidence." }], 0));
         store.SaveEpubBibliography(caseBook.Id, new("synthetic-case.epub", "hash", [], fromCase, 0));
         store.SaveBibliography(other.Id, "Fictional, Dante. *The Imaginary Comedy*. Synthetic Press, 2020.\n\nInvented, Theo. *An External Work*. Synthetic Press, 2021.", null);
         var snapshot = store.ReadBibliographyGraph();

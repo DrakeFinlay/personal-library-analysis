@@ -497,6 +497,11 @@ network now visualizes inferred citation connections from saved bibliographies,
 including cited works outside My Books. Traverse incoming/outgoing neighborhoods,
 expand multiple branches, highlight shortest undirected connection paths while
 retaining each edge's citation direction, and inspect original evidence.
+Selecting a shared work in the left list must immediately focus and redraw the
+network. Hide single-source leaf citations while retaining upstream source books
+as bridges to shared works; visualizations require shared citation evidence.
+Statistics remain based on the full corpus. Use an explicit trace-selection mode
+to choose a path endpoint without replacing the focused work.
 Display limits must not truncate corpus-wide statistics. Count distinct citing
 source books separately from deduplicated evidence passages. Ambiguous identities
 must not create false bridges, and text-only unresolved notes must not invent

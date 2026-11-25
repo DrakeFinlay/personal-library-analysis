@@ -21,7 +21,7 @@ internal sealed class BibliographyConnectionsWindow : Window
         var root = new DockPanel { Margin = new Thickness(18) }; Content = root;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         header.Children.Add(Ui.Heading("Bibliography connections", 27));
-        var note = Ui.Text("Arrows point from the citing book to the cited work. Work identities are inferred from saved citations; inspect the evidence. Light green nodes are in My Books; gray nodes are outside it or ambiguous.", 13, "MutedBrush");
+        var note = Ui.Text("Arrows point from the citing book to the cited work. Shared citations and their connecting source books are shown; single-source leaves are hidden. Identities are inferred. Green nodes are in My Books; gray nodes are external or ambiguous.", 13, "MutedBrush");
         note.TextWrapping = TextWrapping.Wrap; header.Children.Add(note);
         var summary = Ui.Text("Loading saved bibliographies…", 13, "MutedBrush"); header.Children.Add(summary);
         var tabs = new TabControl(); root.Children.Add(tabs);
@@ -29,19 +29,23 @@ internal sealed class BibliographyConnectionsWindow : Window
         var graphGrid = new Grid { Margin = new Thickness(8) }; graphGrid.ColumnDefinitions.Add(new() { Width = new GridLength(235) }); graphGrid.ColumnDefinitions.Add(new()); graphGrid.ColumnDefinitions.Add(new() { Width = new GridLength(300) }); graphTab.Content = graphGrid;
         var searchPanel = new DockPanel { Margin = new Thickness(0, 0, 10, 0) }; graphGrid.Children.Add(searchPanel);
         var searchHeader = new StackPanel(); DockPanel.SetDock(searchHeader, Dock.Top); searchPanel.Children.Add(searchHeader);
-        var search = Ui.Input(searchHeader, "Find a work (title / author)");
+        var search = Ui.Input(searchHeader, "Find a shared work (title / author)");
         var searchCount = Ui.Text("", 12, "MutedBrush"); searchHeader.Children.Add(searchCount);
+        var traceSelection = new CheckBox { Content = "Trace from current focus", Margin = new Thickness(0, 0, 0, 10),
+            ToolTip = "When checked, choosing a shared work highlights a path from the current focus. Otherwise, choosing a work updates the graph immediately." };
+        searchHeader.Children.Add(traceSelection);
         var choices = new ListBox { ItemTemplate = Ui.WrappedLabel(nameof(WorkRow.Label)) }; searchPanel.Children.Add(choices);
         var middle = new DockPanel(); Grid.SetColumn(middle, 1); graphGrid.Children.Add(middle);
         var toolbar = new WrapPanel(); DockPanel.SetDock(toolbar, Dock.Top); middle.Children.Add(toolbar);
-        var depth = new ComboBox { ItemsSource = new[] { 1, 2, 3, 4, 5 }, SelectedIndex = 0, Width = 52, Margin = new Thickness(3, 0, 6, 5) };
+        var depth = new ComboBox { ItemsSource = new[] { 1, 2, 3, 4, 5 }, SelectedIndex = 1, Width = 52, Margin = new Thickness(3, 0, 6, 5) };
         toolbar.Children.Add(Ui.Text("Steps:", 12)); toolbar.Children.Add(depth);
         var viewport = new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = Brushes.White };
         var network = new BibliographyNetworkCanvas(); viewport.Content = network; middle.Children.Add(viewport);
         var graphStatus = Ui.Text("Choose a work to explore its connections.", 12, "MutedBrush"); graphStatus.TextWrapping = TextWrapping.Wrap;
         DockPanel.SetDock(graphStatus, Dock.Bottom); middle.Children.Insert(middle.Children.Count - 1, graphStatus);
         var detail = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; var detailScroll = Ui.Scroll(detail); Grid.SetColumn(detailScroll, 2); graphGrid.Children.Add(detailScroll);
-        BibliographyGraph? graph = null; string? focus = null; string? selected = null; string[] highlightedPath = []; var visible = new HashSet<string>();
+        BibliographyGraph? graph = null; BibliographyGraph? corpus = null; string? focus = null; string? selected = null; string[] highlightedPath = []; var visible = new HashSet<string>();
+        var syncingChoice = false;
         var zoom = new Slider { Minimum = .35, Maximum = 1.8, Value = 1, Width = 90, Margin = new Thickness(8, 0, 0, 5), ToolTip = "Graph zoom" };
         System.Windows.Automation.AutomationProperties.SetName(zoom, "Graph zoom");
         toolbar.Children.Add(Ui.Button("Focus selected", () => Focus(selected)));
@@ -69,12 +73,16 @@ internal sealed class BibliographyConnectionsWindow : Window
         }
         void Focus(string? key)
         {
-            if (graph == null || key == null) return;
+            if (graph == null || key == null || !graph.Nodes.ContainsKey(key)) return;
             focus = selected = key; highlightedPath = [];
+            syncingChoice = true;
+            try { choices.SelectedItem = choices.Items.OfType<WorkRow>().FirstOrDefault(row => row.Work.Key == key); }
+            finally { syncingChoice = false; }
             var slice = graph.Neighborhood(key, (int)(depth.SelectedItem ?? 1), 120); visible = slice.Keys.ToHashSet();
             graphStatus.Text = $"Focus: {graph.Nodes[key].Title} · {visible.Count} works shown" + (slice.Omitted > 0 ? $" · {slice.Omitted} more within these steps omitted (120-work initial limit). Explore a narrower focus or expand a selected branch." : ". Select nodes or arrows to inspect evidence; expand several branches together.");
             Draw(true); Details(key);
         }
+        depth.SelectionChanged += (_, _) => Focus(focus);
         void Expand()
         {
             if (graph == null || selected == null) return;
@@ -89,7 +97,7 @@ internal sealed class BibliographyConnectionsWindow : Window
         {
             if (graph == null || selected == null || focus == null) return;
             highlightedPath = graph.Path(focus, selected);
-            if (highlightedPath.Length == 0) { graphStatus.Text = "No path exists between these works in the saved citation graph."; return; }
+            if (highlightedPath.Length == 0) { graphStatus.Text = "No path exists between these works in the shared citation network."; Draw(); Details(selected); return; }
             var required = highlightedPath.Where(key => !visible.Contains(key)).ToArray();
             if (visible.Count + required.Length > 160) visible = highlightedPath.Take(160).ToHashSet();
             else foreach (var key in required) visible.Add(key);
@@ -105,11 +113,11 @@ internal sealed class BibliographyConnectionsWindow : Window
             detail.Children.Clear(); var work = graph.Nodes[key];
             Text(detail, work.Title, 20); Text(detail, work.Author); Text(detail, work.Identity, 12);
             if (work.BookId is { } id) detail.Children.Add(Ui.Button("Open book", () => { if (store.FindBook(id) is { } book) new BookEditor(store, book) { Owner = this }.ShowDialog(); }));
-            Text(detail, $"Cited by {graph.CitedBy(key).Length} source books · Cites {graph.References(key).Length} works", 14);
+            Text(detail, $"Cited by {graph.CitedBy(key).Length} source books · {graph.References(key).Length} references in this shared network", 14);
             Text(detail, "Cited by", 18);
             foreach (var edge in graph.CitedBy(key).OrderBy(e => graph.Nodes[e.Source].Title))
                 detail.Children.Add(Ui.Button(graph.Nodes[edge.Source].Title + $" ({edge.Evidence.Length} passages)", () => Connection(edge)));
-            Text(detail, "References", 18);
+            Text(detail, "References in shared network", 18);
             foreach (var edge in graph.References(key).OrderBy(e => graph.Nodes[e.Target].Title))
                 detail.Children.Add(Ui.Button(graph.Nodes[edge.Target].Title, () => Connection(edge)));
             if (graph.CitedBy(key).Length + graph.References(key).Length == 0) Text(detail, "No identified citation edges. Text-only notes remain in the bibliography.");
@@ -133,15 +141,21 @@ internal sealed class BibliographyConnectionsWindow : Window
         void Filter()
         {
             if (graph == null) return;
-            var found = graph.Nodes.Values.Where(n => n.Label.Contains(search.Text.Trim(), StringComparison.CurrentCultureIgnoreCase))
+            var found = graph.Nodes.Values.Where(n => graph.CitedBy(n.Key).Length > 1 && n.Label.Contains(search.Text.Trim(), StringComparison.CurrentCultureIgnoreCase))
                 .OrderByDescending(n => graph.CitedBy(n.Key).Length).ThenBy(n => n.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
             choices.ItemsSource = found.Take(100).Select(n => new WorkRow(n, graph.CitedBy(n.Key).Length, graph.References(n.Key).Length)).ToArray();
-            searchCount.Text = found.Length > 100 ? $"First 100 of {found.Length} · refine search" : $"{found.Length} works";
+            searchCount.Text = found.Length > 100 ? $"First 100 of {found.Length} shared works · refine search" : $"{found.Length} shared works";
         }
-        search.TextChanged += (_, _) => Filter(); choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is WorkRow row) Select(row.Work.Key); };
+        search.TextChanged += (_, _) => Filter();
+        choices.SelectionChanged += (_, _) =>
+        {
+            if (syncingChoice || choices.SelectedItem is not WorkRow row) return;
+            if (traceSelection.IsChecked == true && focus != null) { selected = row.Work.Key; Trace(); }
+            else Focus(row.Work.Key);
+        };
         var statistics = new DockPanel { Margin = new Thickness(12) }; statsTab.Content = statistics;
         var statsHeader = new StackPanel(); DockPanel.SetDock(statsHeader, Dock.Top); statistics.Children.Add(statsHeader);
-        Text(statsHeader, "Citing books counts distinct source books. Evidence passages counts distinct citation text within each source; duplicate copies across formats count once. These are counts within your saved bibliography set.");
+        Text(statsHeader, "Citing books counts distinct source books. Evidence passages counts distinct citation text within each source; duplicate copies across formats count once. Single-source evidence is available as statistics only; graph exploration requires a shared work.");
         var statsSearch = Ui.Input(statsHeader, "Filter repeated works (title / author)");
         var includeSingle = new CheckBox { Content = "Also show repeated evidence within a single source", Margin = new Thickness(0, 0, 0, 10) }; statsHeader.Children.Add(includeSingle);
         var statsCount = Ui.Text("", 13, "MutedBrush"); statsHeader.Children.Add(statsCount);
@@ -151,13 +165,15 @@ internal sealed class BibliographyConnectionsWindow : Window
         table.Columns.Add(new DataGridTextColumn { Header = "Citing books", Binding = new Binding(nameof(CitedWorkStatistics.CitingBooks)) });
         table.Columns.Add(new DataGridTextColumn { Header = "Evidence passages", Binding = new Binding(nameof(CitedWorkStatistics.EvidencePassages)) });
         table.Columns.Add(new DataGridTextColumn { Header = "Identity", Binding = new Binding(nameof(CitedWorkStatistics.Identity)), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-        var explore = Ui.Button("Explore selected work", () => { if (table.SelectedItem is CitedWorkStatistics row) { tabs.SelectedIndex = 0; Focus(row.Work.Key); } });
+        var explore = Ui.Button("Explore selected shared work", () => { if (table.SelectedItem is CitedWorkStatistics row && row.CitingBooks > 1) { tabs.SelectedIndex = 0; Focus(row.Work.Key); } });
+        explore.IsEnabled = false;
+        table.SelectionChanged += (_, _) => explore.IsEnabled = table.SelectedItem is CitedWorkStatistics row && row.CitingBooks > 1;
         DockPanel.SetDock(explore, Dock.Bottom); statistics.Children.Add(explore); statistics.Children.Add(table);
-        table.MouseDoubleClick += (_, _) => { if (table.SelectedItem is CitedWorkStatistics row) { tabs.SelectedIndex = 0; Focus(row.Work.Key); } };
+        table.MouseDoubleClick += (_, _) => { if (table.SelectedItem is CitedWorkStatistics row && row.CitingBooks > 1) { tabs.SelectedIndex = 0; Focus(row.Work.Key); } };
         void Stats()
         {
-            if (graph == null) return;
-            var all = graph.Statistics(); var shown = all.Where(row => (row.CitingBooks > 1 || includeSingle.IsChecked == true && row.EvidencePassages > 1) &&
+            if (corpus == null) return;
+            var all = corpus.Statistics(); var shown = all.Where(row => (row.CitingBooks > 1 || includeSingle.IsChecked == true && row.EvidencePassages > 1) &&
                 row.Work.Label.Contains(statsSearch.Text.Trim(), StringComparison.CurrentCultureIgnoreCase)).ToArray();
             table.ItemsSource = shown; statsCount.Text = $"{shown.Length} repeated works shown · {all.Count(row => row.CitingBooks > 1)} cited by multiple books across the entire set";
         }
@@ -166,11 +182,12 @@ internal sealed class BibliographyConnectionsWindow : Window
         {
             try
             {
-                graph = await Task.Run(store.ReadBibliographyGraph);
-                summary.Text = $"{graph.SourceBooks} source books · {graph.Nodes.Count} identified works · {graph.Connections.Length} citation connections · {graph.Statistics().Count(row => row.CitingBooks > 1)} works cited by multiple books. Text-only notes do not create graph edges.";
+                corpus = await Task.Run(store.ReadBibliographyGraph);
+                graph = corpus.SharedNetwork();
+                summary.Text = $"{corpus.SourceBooks} bibliography sources · {graph.Statistics().Count(row => row.CitingBooks > 1)} shared cited works · {graph.Nodes.Count} works including connecting sources · {graph.Connections.Length} shared-network connections. Statistics cover the full saved set.";
                 Filter(); Stats();
                 var initial = graph.Statistics().FirstOrDefault()?.Work.Key ?? graph.Nodes.Keys.FirstOrDefault();
-                if (initial != null) Focus(initial); else graphStatus.Text = "No identified citations yet. Import or add bibliographies first.";
+                if (initial != null) Focus(initial); else graphStatus.Text = "No works are cited by multiple source books yet. Single-source citations remain available in their bibliographies and statistics.";
             }
             catch (Exception ex) { summary.Text = "Could not load bibliography connections: " + ex.Message; }
         };

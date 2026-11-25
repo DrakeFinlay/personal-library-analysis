@@ -779,8 +779,9 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   expansion of several branches together, shortest connection paths, zoom/fit,
   and evidence/source-reader navigation. Arrows retain their citation direction
   even when a path is traversed backwards. Initial views cap at 120 nodes and
-  expanded views at 160, with omission messages. Paths and statistics use the
-  entire graph, including direct cross edges among visible works.
+  expanded views at 160, with omission messages. Paths use the entire shared
+  network; statistics use the full corpus. Retained cross edges are drawn among
+  visible works.
 - Repeatedly cited works lists distinct citing books and evidence passages with
   sortable columns, title/author filtering, an option for repeated evidence from
   one source, and navigation back into the graph. No ratings or ownership filter
@@ -801,6 +802,28 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   variants can split counts; parts such as Inferno and Paradiso remain distinct
   from a parent work. Accepted identities, alias/part grouping, graph export and
   external citation discovery remain later work. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
+## Shared graph selection correction
+
+- Clicking a shared work in the left list immediately focuses, redraws and fits
+  the graph and updates details. Steps changes also update immediately; the
+  initial neighborhood is two steps. Graph-node selection retains expanded
+  branches. An explicit **Trace from current focus** option preserves path tracing
+  when choosing another shared work in the left list.
+- Visualization now projects the full citation graph onto multiply cited works
+  and their upstream source books. One-source leaves and isolated single-source
+  components are excluded, while singly cited source books can bridge deep
+  chains. Search lists shared works only. Full-corpus statistics still support
+  repeated evidence within one source; those rows cannot open a graph.
+- Synthetic checks cover leaf removal, parallel branches, preservation of deep
+  bridges, repeated evidence from only one source, and cycle-safe projection.
+  All 242 checks passed and Release build passed without warnings/errors. An
+  isolated TEST PROFILE verified one-click focus/redraw, shared-only search,
+  explicit trace selection, and disabled graph exploration for a single-source
+  statistics row. Arrow routing was visually verified to curve around an
+  intervening node card, avoiding the appearance of a false connection.
+  The regular Windows launcher was published with these corrections.
+  Existing identity and evidence limitations continue to apply.
 
 ## Deliberate limitations and follow-ups
 

@@ -115,24 +115,31 @@ evidence; ambiguous records remain possible matches rather than accepted links.
 
 Open **Bibliographies → Connections & citation stats**. This reads all saved EPUB,
 online, and pasted/scanned bibliographies locally. It includes cited works outside
-My Books. Nothing is changed by opening or exploring the graph.
+My Books. The graph is limited to works cited by at least two source books and
+the source books that connect to them. Unrelated single-source leaf citations
+are hidden. A source cited only once can still appear as a bridge in a deeper
+chain. Nothing is changed by opening or exploring the graph.
 
 An arrow means **citing book → cited work**. For example, if a later source cites
 a history book and that history book cites a poem, the two arrows form a chain.
 Other sources citing the same poem form additional branches. A chain does not
 mean that its first source directly cites every work farther along it.
 
-1. Find a title or author in the left search box. Select it, then choose **Focus
-   selected**. The initial view shows its immediate references and citing books.
-2. Choose **Steps** (1–5) before focusing to load a wider neighborhood. Selecting
-   another work shows its details without replacing your current focus.
+1. Find a shared title or author in the left search box. Selecting a result
+   immediately updates and fits the graph, highlights that work, and updates its
+   details. No separate focus action is required. The initial view shows two steps.
+2. Change **Steps** (1–5) to immediately update the current neighborhood. Clicking
+   a graph node shows its details while keeping the expanded network. **Focus
+   selected** can recenter the graph on that node.
 3. Select a node, then **Expand selected** to add its immediate references and
    citing books. Existing branches stay visible, so you can expand several works
    and see their cross connections at the same time.
-4. To trace between works, focus the first, find/select the second in the search
-   results, and choose **Trace from focus**. A shortest connection is highlighted
-   in orange. The path can traverse arrows in either direction; each arrow keeps
-   the actual citation direction. Other visible branches remain available.
+4. To trace between shared works, select the first, check **Trace from current
+   focus**, then find/select the second in the left list. A shortest connection
+   is highlighted in orange. Uncheck this option to return to immediate focusing.
+   You can also select a visible graph node and choose **Trace from focus**.
+   Paths can traverse arrows in either direction; each arrow keeps its actual
+   citation direction. Other visible branches remain available.
 5. Use the zoom slider and scrollbars to inspect the network. **Fit graph** fits
    the visible works together; focusing, expanding and tracing also refit the
    view. **Reset** returns to the focused work's chosen step count.
@@ -155,11 +162,12 @@ example, citations naming **Inferno** and **Paradiso** remain those works, rathe
 than being relabeled as **The Divine Comedy**. Only identifiable saved citations
 create edges; missing or unrecognized bibliographies cannot supply a chain yet.
 
-The search shows the first 100 matching works; refine it to find a specific title.
+The search lists shared cited works only, showing the first 100 matches if needed.
 A focused view shows up to 120 works, and expansion up to 160. Hidden-neighbor
 messages explain when a limit is reached; focus a narrower branch to continue.
-All direct cross connections between visible nodes are drawn. These display
-limits do not limit the statistics or shortest-path search. Close and reopen the
+All retained shared-network cross connections between visible nodes are drawn.
+Shortest paths use the entire shared network. Statistics still use all saved
+citations, independently of the graph filter and display limits. Close and reopen the
 window after changing bibliography data to load a fresh snapshot.
 
 ## Statistics for repeatedly cited works
@@ -167,7 +175,8 @@ window after changing bibliography data to load a fresh snapshot.
 In the same window, select **Repeatedly cited works**. By default it lists works
 cited by at least two distinct source books, sorted by that source count and
 then by evidence count. Filter by title/author, or click column headings to sort.
-Double-click a row or choose **Explore selected work** to open its graph.
+Double-click a shared-work row or choose **Explore selected shared work** to open
+its graph. Single-source rows cannot open a visualization.
 
 - **Citing books** counts distinct source-book records, regardless of rating,
   ownership or reading status. Excluded books do not contribute.
@@ -176,7 +185,8 @@ Double-click a row or choose **Explore selected work** to open its graph.
   Several references in one note may point to different works; the full note can
   be the evidence for each. This is not an exact count of all printed mentions.
 - **Also show repeated evidence within a single source** includes works with
-  several distinct passages even if only one source book cites them.
+  several distinct passages even if only one source book cites them. Those rows
+  are available for statistics and do not enable graph exploration.
 
 Counts cover your saved bibliography set, including inferred external works.
 They do not measure worldwide citations or count indirect/transitive citations.

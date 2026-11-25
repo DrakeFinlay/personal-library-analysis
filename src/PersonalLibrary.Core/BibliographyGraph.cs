@@ -37,6 +37,23 @@ public sealed class BibliographyGraph
         .Where(row => row.CitingBooks > 0).OrderByDescending(row => row.CitingBooks).ThenByDescending(row => row.EvidencePassages)
         .ThenBy(row => row.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
 
+    public BibliographyGraph SharedNetwork()
+    {
+        // Keep works cited by several books and all upstream sources that connect
+        // to them. A singly cited source may bridge a deep chain; unrelated leaves
+        // and isolated single-source components do not belong in this view.
+        var keys = Statistics().Where(row => row.CitingBooks > 1).Select(row => row.Work.Key).ToHashSet();
+        var queue = new Queue<string>(keys); var edges = new List<BibliographyConnection>();
+        while (queue.TryDequeue(out var key))
+            foreach (var edge in CitedBy(key))
+            {
+                edges.Add(edge);
+                if (keys.Add(edge.Source)) queue.Enqueue(edge.Source);
+            }
+        var nodes = keys.ToDictionary(key => key, key => Nodes[key]);
+        return new(nodes, edges.ToArray(), nodes.Values.Count(node => node.HasBibliography), TextOnlyEntries);
+    }
+
     public BibliographyNeighborhood Neighborhood(string root, int depth, int limit = 120)
     {
         if (!Nodes.ContainsKey(root) || depth < 0 || limit < 1) return new([], 0);

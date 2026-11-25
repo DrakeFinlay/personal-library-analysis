@@ -113,7 +113,8 @@ bibliographies and shows which sources cite them. See the
 [bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and extraction limitations.
 
 **Bibliographies → Connections & citation stats** opens an interactive citation
-network. Focus a work, expand several branches, trace paths, zoom, and inspect
+network of shared citations and their connecting source books. Click a shared
+work in the left list to immediately update the graph; expand branches, trace paths, zoom, and inspect
 the original evidence behind each arrow. **Repeatedly cited works** ranks titles
 by distinct citing books and evidence passages across your saved bibliography
 set, including cited works outside My Books. Identities remain inferred; ambiguous

@@ -60,8 +60,10 @@ internal sealed class BibliographyNetworkCanvas : Canvas
             var incident = edge.Source == selected || edge.Target == selected;
             var brush = highlighted ? Brushes.DarkOrange : incident ? Brushes.Teal : Brushes.SlateGray;
             var from = Positions[edge.Source]; var to = Positions[edge.Target]; var vector = to - from; if (vector.Length < 1) continue;
-            var start = Boundary(from, vector); var end = Boundary(to, -vector); vector.Normalize(); var side = new Vector(-vector.Y, vector.X);
-            var line = new Line { X1 = start.X, Y1 = start.Y, X2 = end.X, Y2 = end.Y, Stroke = brush, StrokeThickness = highlighted ? 4 : incident ? 2.7 : 1.5,
+            var route = Route(edge.Source, edge.Target);
+            var start = route.Start; var end = route.End; vector = end - route.Control; vector.Normalize(); var side = new Vector(-vector.Y, vector.X);
+            var geometry = new PathGeometry([new PathFigure(start, [new QuadraticBezierSegment(route.Control, end, true)], false)]);
+            var line = new System.Windows.Shapes.Path { Data = geometry, Stroke = brush, StrokeThickness = highlighted ? 4 : incident ? 2.7 : 1.5,
                 ToolTip = $"{graph.Nodes[edge.Source].Title} cites {graph.Nodes[edge.Target].Title}\n{edge.Evidence.Length} evidence passage(s) · click to inspect" };
             line.MouseLeftButtonDown += (_, args) => { ConnectionSelected?.Invoke(edge); args.Handled = true; }; Children.Add(line);
             var arrow = new Polygon { Fill = brush, Points = new PointCollection([end, end - vector * 13 + side * 5, end - vector * 13 - side * 5]), IsHitTestVisible = false };
@@ -81,6 +83,36 @@ internal sealed class BibliographyNetworkCanvas : Canvas
             button.Click += (_, _) => WorkSelected?.Invoke(key);
             SetLeft(button, Positions[key].X - 95); SetTop(button, Positions[key].Y - 38); Children.Add(button);
         }
+    }
+
+    private (Point Start, Point Control, Point End) Route(string source, string target)
+    {
+        var from = Positions[source]; var to = Positions[target]; var direction = to - from; direction.Normalize();
+        var side = new Vector(-direction.Y, direction.X); var middle = from + (to - from) * .5;
+        (Point Start, Point Control, Point End) best = (Boundary(from, to - from), middle, Boundary(to, from - to));
+        var fewest = int.MaxValue;
+        // Keep arrow strokes away from unrelated node cards so a hidden section
+        // cannot look like a citation originating from the intervening work.
+        foreach (var offset in new[] { 0, 90, -90, 180, -180, 300, -300, 450, -450 })
+        {
+            var control = middle + side * offset;
+            var start = Boundary(from, control - from); var end = Boundary(to, control - to);
+            var collisions = 0;
+            foreach (var other in Positions.Where(pair => pair.Key != source && pair.Key != target))
+            {
+                var bounds = new Rect(other.Value.X - 105, other.Value.Y - 48, 210, 96);
+                for (var i = 1; i < 40; i++)
+                {
+                    var t = i / 40d; var u = 1 - t;
+                    var point = new Point(u * u * start.X + 2 * u * t * control.X + t * t * end.X,
+                        u * u * start.Y + 2 * u * t * control.Y + t * t * end.Y);
+                    if (bounds.Contains(point)) { collisions++; break; }
+                }
+            }
+            if (collisions < fewest) { best = (start, control, end); fewest = collisions; }
+            if (collisions == 0) break;
+        }
+        return best;
     }
 
     private static Point Boundary(Point center, Vector direction)
