@@ -169,19 +169,15 @@ internal sealed class BookEditor : Window
             if (new PublicBibliographyWindow(store, source) { Owner = this }.ShowDialog() == true)
                 online.IsEnabled = true;
         }));
-        if (book.Calibre is { } epubSource && epubSource.Metadata.Files.FirstOrDefault(file => file.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase)) is { } epubFile)
+        citationActions.Children.Add(Ui.Button("Import bibliography from EPUB…", () =>
         {
-            citationActions.Children.Add(Ui.Button("Extract bibliography from EPUB", () =>
+            if (new EpubBibliographyImportWindow(store, book, EpubBibliographyImportWindow.LinkedEpub(book)) { Owner = this }.ShowDialog() == true)
             {
-                var path = CalibreImporter.ResolvePath(epubSource.LibraryFolder, epubFile.RelativePath);
-                if (!File.Exists(path)) throw new IOException("The EPUB is unavailable. Refresh the Calibre connection.");
-                var citations = EpubBibliographyReader.Read(path!);
-                store.SaveEpubBibliography(book.Id, citations);
-                savedCitations = citations;
-                browse.IsEnabled = true;
+                savedCitations = store.ReadEpubBibliography(book.Id);
+                browse.IsEnabled = savedCitations != null;
                 RenderExtracted();
-            }));
-        }
+            }
+        }));
         references.Children.Add(citationActions);
         references.Children.Add(extracted);
         RenderExtracted();

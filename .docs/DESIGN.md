@@ -465,7 +465,14 @@ exist outside My Books. Store evidence, source edition, reference location,
 provider, match status, and retrieval/import dates. Preserve parallel evidence
 without displaying duplicate logical connections.
 
-The EPUB prototype extracts dedicated bibliography sections and preserves original
+EPUB import is available from Bibliographies and the source book editor, with a
+file chooser independent of Calibre. Analyze locally, preview citation text and
+possible library matches, then explicitly save after a verified profile backup.
+Retain the original EPUB by hash and record replacements in book change history;
+reject stale previews if the file or current EPUB bibliography changed. Personal
+Markdown and online bibliographies remain separate.
+
+The EPUB reader extracts dedicated bibliography sections and preserves original
 citation text, grouping, and source location in a separate local record. A searchable
 browser offers possible matches by title and author. It was evaluated against the
 complete Dominion bibliography. Image OCR uses the installed Windows recognizer

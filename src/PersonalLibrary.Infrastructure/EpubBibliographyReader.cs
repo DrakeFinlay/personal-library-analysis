@@ -12,7 +12,7 @@ public static class EpubBibliographyReader
 {
     private static readonly HashSet<string> BibliographyHeadings = new(
         ["bibliography", "selected bibliography", "select bibliography", "general bibliography", "annotated bibliography",
-            "references", "selected references", "works cited", "works consulted", "further reading", "recommended reading",
+            "references", "selected references", "works cited", "bibliography of works cited", "works consulted", "further reading", "recommended reading",
             "suggested reading", "bibliography and guide to further reading", "bibliography and further reading", "sources and further reading",
             "literaturverzeichnis", "bibliographie", "参考文献", "引用文献"], StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> BackMatterHeadings = new(

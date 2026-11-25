@@ -841,6 +841,12 @@ public sealed class MainWindow : Window
                 RefreshPage();
         });
         actions.Children.Add(photos);
+        actions.Children.Add(Ui.Button("Import bibliography from EPUB…", () =>
+        {
+            if (ChooseBibliographyBook("Import bibliography from EPUB") is not { } book) return;
+            if (new EpubBibliographyImportWindow(store, book, EpubBibliographyImportWindow.LinkedEpub(book)) { Owner = this }.ShowDialog() == true)
+                RefreshPage();
+        }));
         var cited = Ui.Button("Cited books in My Books", () =>
             new LocalCitedBooksWindow(store, (book, citation) => OpenBibliography(book, citation)) { Owner = this }.ShowDialog());
         actions.Children.Add(cited);

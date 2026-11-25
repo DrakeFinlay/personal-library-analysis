@@ -24,6 +24,7 @@ try
     GoalChecks.Run(workspace, Check, Reject);
     BookChangeChecks.Run(workspace, Check, Reject);
     GoodreadsOrderChecks.Run(workspace, Check, Reject);
+    EpubImportChecks.Run(workspace, Check, Reject);
     BrowsingChecks.Run(workspace, Check);
     LocalCitationChecks.Run(workspace, Check);
     var book = NewBook("Synthetic coastal history");

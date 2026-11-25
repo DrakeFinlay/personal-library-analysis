@@ -94,16 +94,20 @@ or both libraries. The combined action uses Calibre's trash and includes every
 format in each selected Calibre entry. Close Calibre before confirming that
 action. A personal-only removal skips the record on later Calibre refreshes.
 
-The book editor's **Bibliography** tab can extract a dedicated bibliography
-from its linked EPUB. **Browse EPUB citations** opens search, sections, the
-original citation text, and possible matches in My Books. Your Markdown notes
-are saved separately.
+Choose **Bibliographies → Import bibliography from EPUB…**, select a source
+book, and choose an EPUB from anywhere on your computer. Analyze it, review the
+citations and possible local matches, then save. The same action appears in the
+book editor's **Bibliography** tab, with a linked Calibre EPUB filled in when
+available. Saving creates a verified backup, retains the original EPUB, and
+records the bibliography in Change history. **Browse EPUB citations** opens
+search, sections, original citation text, and possible matches in My Books.
+Your Markdown notes and online bibliography are preserved separately.
 
 In **Bibliographies**, use **Import bibliography photos…** to scan page images
 offline, correct their text, review possible local matches, and save to a source
 book. **Cited books in My Books** combines matching library titles from all saved
 bibliographies and shows which sources cite them. See the
-[bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and OCR limitations.
+[bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and extraction limitations.
 
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.

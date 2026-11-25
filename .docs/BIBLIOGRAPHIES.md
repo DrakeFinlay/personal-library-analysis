@@ -1,4 +1,41 @@
-# Bibliography photos and cited library books
+# Importing bibliographies and finding cited library books
+
+## Import a bibliography from an EPUB
+
+1. Open **Bibliographies → Import bibliography from EPUB…**.
+2. Search for the book whose bibliography you want to add and choose **Continue**.
+   If it is missing, add and save it in My Books first.
+3. Choose **Choose EPUB…** and select the file, or paste its full path into
+   **EPUB file**. The EPUB does not need a Calibre connection.
+4. Choose **Analyze bibliography**. Review the extracted text and entry count.
+   Analysis runs locally and does not save anything to the book.
+5. Use **Review citations / local matches** to search the extracted entries and
+   inspect possible matches in My Books. Close that review to return to the preview.
+6. Choose **Back up and save bibliography**. The app verifies a complete profile
+   backup, keeps an exact copy of the EPUB, and saves the citations under the
+   source book in Bibliographies. The change also appears in the book's
+   **Change history** button. Pasted/scanned Markdown and online
+   bibliographies remain separate.
+
+The same import button is available in a saved book's **Bibliography** tab.
+If the book has a linked Calibre EPUB, its path is filled in automatically; you
+can choose a different file. Each import requires analysis and an explicit save.
+Closing the preview leaves the saved bibliography unchanged.
+
+Reimporting replaces only the current EPUB bibliography. Earlier saved citation
+text remains in Change history and the backup; retained source files stay in the
+profile. If either the EPUB or saved bibliography changes after analysis, saving
+is rejected: analyze again to review the current version.
+
+Extraction recognizes dedicated bibliography/reference headings, including
+**Bibliography of Works Cited**, and retains complete citation text even when
+the title or author cannot be recognized. It does not scan arbitrary endnotes,
+unlock encrypted content, or guarantee every publisher's layout. A file without
+a recognized bibliography reports an error and preserves existing data. The
+preview is read-only; use personal bibliography Markdown for manual corrections
+or unsupported layouts. Local matches are suggestions, not confirmed links.
+Unusually large editions are rejected and oversized or malformed individual
+documents are reported as unreadable; check that count before saving.
 
 ## Import bibliography photos
 

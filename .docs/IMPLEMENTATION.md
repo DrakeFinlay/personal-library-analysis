@@ -708,6 +708,32 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   to-read position. Their source fields are retained and no global ranks were
   fabricated. These counts describe this recovery and can change with later edits.
 
+## Reusable EPUB bibliography import
+
+- Bibliographies and the book editor offer **Import bibliography from EPUB…**
+  for any saved source book, independent of Calibre. A linked Calibre EPUB is
+  prefilled when available. Local analysis produces a read-only text preview and
+  a citation/local-match review; saving is explicit and runs off the UI thread.
+- Saving verifies a profile backup, retains the original EPUB by hash, preserves
+  personal Markdown and online bibliography records, and records citation evidence
+  in source-book Change history. Replacements reject stale file/content previews.
+  Recognition now includes **Bibliography of Works Cited** headings.
+- All 213 synthetic checks passed, covering unlinked files, analysis without
+  saving, backup/source preservation, history, replacement, stale previews, missing
+  source books, and unsuccessful extraction. Release build passed with no warnings
+  or errors; the regular Windows launcher was published. An isolated TEST PROFILE
+  verified the top-level action, preview,
+  possible local matches, explicit save, and refreshed bibliography card.
+- The authorized God’s Philosophers import saved 337 entries with zero unreadable
+  documents. Every citation paragraph was checked against the EPUB in order. Two
+  entries lack a recognized title but retain their complete citation text. A verified
+  backup and exact source copy were retained; all 759 book identities, unrelated
+  fields, personal Markdown, and online bibliography were verified unchanged.
+- Dedicated bibliography extraction remains layout-dependent. General endnotes,
+  encrypted content, manual section selection, editable structured citations,
+  and accepted citation edges remain outside this workflow. Practical steps and
+  limitations are in [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
