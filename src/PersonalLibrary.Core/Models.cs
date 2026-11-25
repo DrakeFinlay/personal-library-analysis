@@ -109,6 +109,7 @@ public sealed class Book
     public string? OpenLibraryWorkId { get; set; }
     public ReadingStatus Status { get; set; } = ReadingStatus.ToRead;
     public List<string> Shelves { get; set; } = [];
+    public List<string> ToReadGroups { get; set; } = [];
     public List<Edition> Editions { get; set; } = [new()];
     public Guid SelectedEditionId { get; set; }
     public List<Reading> Readings { get; set; } = [];

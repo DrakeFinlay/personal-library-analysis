@@ -87,13 +87,22 @@ eligible completed readings, independently of the title list.
 
 ### My Books and book details
 
-Stage A includes a list with cover thumbnails and a grid with larger covers.
-Both views share search, visible reading-status toggles, a separate shelf filter,
-and access to the book editor. Clicking a cover in bulk edit toggles its selection.
+My Books defaults to To read in a compact text table, with optional Covers.
+Reading statuses appear on the far left, with separate shelf and to-read group
+filters above the results. All is available for each filter. The table loads the
+first 50 matching records; Show all books deliberately expands the filtered range.
+Queries apply filters and sorting to the full library before limiting records.
+The table virtualizes rows and loads no cover images. Optional title/author/ISBN
+search lives under Find a specific book. Clicking a cover in bulk edit toggles its selection.
 My Books keeps the current search, filters, selections, and scroll position when
 the book editor closes. Refresh library reloads the saved records in that view.
-Show the selected edition's cover where available and a placeholder otherwise.
-A sortable table and Cover Flow are later work.
+The table sorts by title/author and opens rows with a double-click or Enter.
+Covers show available selected-edition images and placeholders. Cover Flow is later work.
+
+User-named to-read groups overlap independently of shelves. The editor saves
+comma-separated memberships and bulk edit can add a group to selected books.
+Memberships survive status changes, imports, and merges. Select all shown targets
+loaded rows; users must request Show all books to include a larger filtered set.
 
 My Books saves the requested books per cover row and title and detail font sizes.
 Narrow windows use fewer columns to keep cards usable. Bulk selection supports

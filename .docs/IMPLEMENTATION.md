@@ -625,6 +625,36 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   is still saved. Other image formats depend on installed Windows codecs; OCR
   requires an installed Windows OCR language. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
 
+## Faster My Books and overlapping to-read groups
+
+- My Books opens at To read in a compact, virtualized text Table without cover
+  decoding. Status filters are on the far left; independent shelf and group
+  menus narrow the range. Changing status keeps the shelf/group choice. Optional
+  title/author/ISBN search is under Find a specific book and waits briefly after
+  typing. Covers remains available.
+- Normal database browsing materializes at most 50 matching books, after filtering
+  and sorting the full library. Show all books expands the filtered range and Show
+  first 50 collapses it. Status/shelf/group/search changes reset the limit. My Books
+  no longer reloads and retains all book aggregates on navigation. Other screens
+  still load their full calculation inputs, and Missing local cover checks files.
+- Table rows open with a double-click or Enter. Title/Author headers and sort
+  controls stay synchronized. Bulk selection uses Ctrl/Shift and Select all shown
+  targets only the loaded rows. Existing batch status, shelf, acquisition,
+  configuration, enrichment, and removal workflows remain accessible.
+- Book & editions saves overlapping To-read groups with existing-name suggestions.
+  Bulk Add to group preserves existing memberships. Groups are independent of
+  shelves and persist through status changes, imports, and merges; edit a book's
+  group field to remove its memberships. See [LIBRARY-BROWSING.md](LIBRARY-BROWSING.md).
+- All 182 synthetic checks passed. On this machine, first-50 database queries
+  against a 2,000-book fixture took about 19–22 ms; these are query timings, not
+  application-startup or full UI benchmarks. Windows verification in the isolated
+  TEST PROFILE confirmed the default 50 rows, shelf/status switching, group
+  intersections, 499-row expansion, and a saved custom group on 50 selected books.
+  Verified synchronized header sorting, the saved 50-book custom group, editor
+  closure with filters retained, and reopened OCR text in the published build.
+  The Release build passed without warnings/errors, and the regular Windows
+  launcher build was published. No personal data was used.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
@@ -632,7 +662,7 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   remain planned. Calibre custom column mapping remains deferred.
 - Description and review interpretation, embeddings, and broader catalog
   discovery remain later recommendation work. Direct PDF extraction, automatic
-  external Markdown watching, visual browsing modes beyond the list and cover
+  external Markdown watching, visual browsing modes beyond the table and cover
   grid, citation graph, and Anki integration remain later stages.
 - Initial backups contain complete profile copies. The retention policy keeps 14
   daily and 4 weekly archives; manual/pre-restore archives are retained. Large-source

@@ -13,7 +13,7 @@ internal sealed class BookEditor : Window
 {
     private readonly LibraryStore store;
     private readonly Book book;
-    private readonly TextBox title, author, year, shelves, rating, review, notes, bibliography;
+    private readonly TextBox title, author, year, shelves, groups, rating, review, notes, bibliography;
     private readonly TextBox editionLabel, isbn, publisher, language, editionYear, pages;
     private readonly TextBox msrp;
     private readonly CheckBox physical, ebook, audio, excluded;
@@ -59,6 +59,9 @@ internal sealed class BookEditor : Window
         year = Ui.Input(metadata, "Original publication year (negative for BCE; blank if unknown)", book.OriginalYear?.ToString() ?? "");
         shelves = Ui.Input(metadata, "Shelves (comma separated)", string.Join(", ", book.Shelves));
         ShelfSuggestions.Attach(shelves, store.Books().SelectMany(savedBook => savedBook.Shelves));
+        groups = Ui.Input(metadata, "To-read groups (comma separated)", string.Join(", ", book.ToReadGroups));
+        ShelfSuggestions.Attach(groups, store.LibraryNames(groups: true));
+        groups.ToolTip = "Create your own groups, for example Research for a book. A book can belong to several groups. Clear this field to remove all its groups.";
         excluded = Check(metadata, "Excluded content (manga/comics or outside this library's scope)", book.Excluded);
         metadata.Children.Add(Ui.Heading("Editions & ownership", 23));
         editionPicker = new ComboBox { DisplayMemberPath = "Label", ItemsSource = book.Editions, SelectedItem = editingEdition };
@@ -568,6 +571,7 @@ internal sealed class BookEditor : Window
     {
         CaptureEdition(); book.Title = title.Text; book.Author = author.Text; book.OriginalYear = OptionalInt(year.Text, "Original year");
         book.Shelves = shelves.Text.Split(',').ToList(); book.Rating = OptionalInt(rating.Text, "Rating");
+        book.ToReadGroups = groups.Text.Split(',').ToList();
         book.Review = review.Text; book.Notes = notes.Text; book.Excluded = excluded.IsChecked == true;
         foreach (var (id, start, finish) in readingDates)
         {

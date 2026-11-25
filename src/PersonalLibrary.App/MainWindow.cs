@@ -61,11 +61,12 @@ public sealed class MainWindow : Window
 
     private void RefreshPage()
     {
-        books = store.Books();
+        books = activePage == "My Books" ? [] : store.Books();
         if (activePage != "Home") homeReadingScroll = null;
         if (activePage != "Recommendations") recommendationsScroll = null;
         if (activePage != "Statistics") statisticsPage = null;
-        message.Text = store.LastBackupError ?? $"{books.Count(b => !b.Excluded)} books  ·  Saved on this computer  ·  Offline core";
+        message.Text = store.LastBackupError ?? (activePage == "My Books" ? "Saved on this computer  ·  Offline core" :
+            $"{books.Count(b => !b.Excluded)} books  ·  Saved on this computer  ·  Offline core");
         page.Content = activePage switch
         {
             "My Books" => libraryPage ??= Library(), "Recommendations" => RecommendationsPage(),
@@ -85,7 +86,7 @@ public sealed class MainWindow : Window
     private void Edit(Book book)
     {
         if (activePage == "My Books")
-            book = store.Books().Find(saved => saved.Id == book.Id)
+            book = store.FindBook(book.Id)
                 ?? throw new InvalidOperationException("This book was removed. Refresh the library to update the results.");
         var editor = new BookEditor(store, book) { Owner = this };
         editor.ShowDialog();
@@ -242,11 +243,14 @@ public sealed class MainWindow : Window
 
     private UIElement Library()
     {
-        var libraryBooks = books;
         var showCovers = false;
         var sortByAuthor = false;
         var sortDescending = false;
+        var updatingSort = false;
         var root = new DockPanel(); var top = new StackPanel();
+        var showAll = false;
+        var resultSummary = Ui.Text("", 13, "MutedBrush");
+        var showAllButton = Ui.Button("Show all books", () => { });
         var heading = new DockPanel();
         var libraryActions = new WrapPanel();
         var reload = Ui.Button("Refresh library", () => { });
@@ -254,9 +258,12 @@ public sealed class MainWindow : Window
         heading.Children.Add(libraryActions);
         heading.Children.Add(Ui.Heading("My Books"));
         top.Children.Add(heading);
-        var search = Ui.Input(top, "Search saved books by title, author, ISBN, or shelf");
-        var statusFilters = new WrapPanel();
-        ReadingStatus? statusFilter = null;
+        var findPanel = new StackPanel();
+        var search = Ui.Input(findPanel, "Find title, author, or ISBN within these filters");
+        top.Children.Add(new Expander { Header = "Find a specific book", Content = findPanel, Margin = new Thickness(0, 0, 0, 8) });
+        var statusFilters = new StackPanel { Width = 170, Margin = new Thickness(0, 0, 18, 0) };
+        statusFilters.Children.Add(Ui.Text("READING STATUS", 12, "MutedBrush"));
+        ReadingStatus? statusFilter = ReadingStatus.ToRead;
         (string Label, ReadingStatus? Status)[] statusOptions =
         [
             ("All", null), ("Unclassified", ReadingStatus.Unclassified), ("To read", ReadingStatus.ToRead),
@@ -267,29 +274,32 @@ public sealed class MainWindow : Window
         var statusButtons = new List<(RadioButton Button, ReadingStatus? Status)>();
         foreach (var (label, value) in statusOptions)
         {
-            var button = new RadioButton { Content = label, IsChecked = value == null, Style = (Style)FindResource("StatusFilter") };
+            var button = new RadioButton { Content = label, IsChecked = value == ReadingStatus.ToRead, Style = (Style)FindResource("StatusFilter") };
             AutomationProperties.SetName(button, value == null ? "All reading statuses" : ReadingRules.Label(value.Value));
             statusFilters.Children.Add(button);
             statusButtons.Add((button, value));
         }
-        top.Children.Add(statusFilters);
+        DockPanel.SetDock(statusFilters, Dock.Left); root.Children.Add(statusFilters);
         var filters = new WrapPanel();
         var shelf = new ComboBox { Width = 195, Margin = new Thickness(0, 0, 12, 10) };
         var restoringShelf = false;
+        var groups = new ComboBox { Width = 205, Margin = new Thickness(0, 0, 12, 10) };
+        AutomationProperties.SetName(shelf, "Shelf filter");
+        AutomationProperties.SetName(groups, "To-read group filter");
         LoadShelves();
         var excluded = new CheckBox { Content = "Show excluded records" };
         var missingCover = new CheckBox { Content = "Missing local cover", Margin = new Thickness(10, 4, 0, 10) };
         var bulkEdit = new CheckBox { Content = "Bulk edit", Margin = new Thickness(10, 4, 0, 10) };
         var views = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 4, 0, 10) };
         views.Children.Add(Ui.Text("View", 13, "MutedBrush"));
-        var listView = new RadioButton { Content = "List", IsChecked = !showCovers, Margin = new Thickness(12, 0, 12, 0) };
+        var listView = new RadioButton { Content = "Table", IsChecked = !showCovers, Margin = new Thickness(12, 0, 12, 0) };
         var coverView = new RadioButton { Content = "Covers", IsChecked = showCovers };
         foreach (var option in new[] { listView, coverView })
         {
             option.SetResourceReference(ForegroundProperty, "TextBrush");
             views.Children.Add(option);
         }
-        filters.Children.Add(shelf); filters.Children.Add(excluded); filters.Children.Add(missingCover); filters.Children.Add(views);
+        filters.Children.Add(shelf); filters.Children.Add(groups); filters.Children.Add(excluded); filters.Children.Add(missingCover); filters.Children.Add(views);
         filters.Children.Add(bulkEdit);
         var display = Ui.Button("Display…", () => { });
         display.Margin = new Thickness(12, 0, 0, 8);
@@ -338,8 +348,11 @@ public sealed class MainWindow : Window
             SelectedIndex = 0, Margin = new Thickness(0, 0, 8, 8)
         };
         var bulkShelf = new TextBox { Width = 150, Margin = new Thickness(0, 0, 8, 8) };
-        ShelfSuggestions.Attach(bulkShelf, () => libraryBooks.SelectMany(book => book.Shelves), commaSeparated: false);
+        ShelfSuggestions.Attach(bulkShelf, () => store.LibraryNames(), commaSeparated: false);
         bulkShelf.ToolTip = "Choose an existing shelf or type a new shelf name.";
+        var bulkGroup = new TextBox { Width = 180, ToolTip = "Add selected books to a group. Existing memberships are kept." };
+        AutomationProperties.SetName(bulkGroup, "Add to to-read group");
+        ShelfSuggestions.Attach(bulkGroup, () => store.LibraryNames(groups: true), commaSeparated: false);
         var bulkAcquisition = new ComboBox
         {
             Width = 155, ItemsSource = new[] { "Keep gift/library", "Gift", "Library" },
@@ -374,13 +387,14 @@ public sealed class MainWindow : Window
         apply.Click += (_, _) => Ui.Guard(() =>
         {
             var shelfName = bulkShelf.Text.Trim();
-            if (bulkStatus.SelectedIndex == 0 && shelfName.Length == 0 && bulkAcquisition.SelectedIndex == 0)
-                throw new InvalidOperationException("Choose a status, Gift or Library, or enter a shelf name.");
+            if (bulkStatus.SelectedIndex == 0 && shelfName.Length == 0 && bulkGroup.Text.Trim().Length == 0 && bulkAcquisition.SelectedIndex == 0)
+                throw new InvalidOperationException("Choose a status, Gift or Library, or enter a shelf or group name.");
             var changes = store.Books().Where(book => selected.Contains(book.Id)).ToList();
             foreach (var book in changes)
             {
                 if (bulkStatus.SelectedIndex > 0) ReadingRules.Classify(book, statuses[bulkStatus.SelectedIndex - 1]);
                 if (shelfName.Length > 0) book.Shelves.Add(shelfName);
+                if (bulkGroup.Text.Trim().Length > 0) book.ToReadGroups.Add(bulkGroup.Text.Trim());
                 if (bulkAcquisition.SelectedIndex > 0)
                     AcquisitionRules.Mark(book, asGift: bulkAcquisition.SelectedIndex == 1);
             }
@@ -390,15 +404,19 @@ public sealed class MainWindow : Window
             message.Text = store.LastBackupError ?? $"Updated {changes.Count} books.";
         });
         bulk.Children.Add(selectedCount);
-        bulk.Children.Add(Ui.Button("Select all results", () => { selected.UnionWith(matches.Select(book => book.Id)); Populate(); }));
+        bulk.Children.Add(Ui.Button("Select all shown", () => { selected.UnionWith(matches.Select(book => book.Id)); Populate(); }));
         bulk.Children.Add(Ui.Button("Clear selection", () => { selected.Clear(); selectionAnchor = null; Populate(); }));
         bulk.Children.Add(bulkStatus);
         bulk.Children.Add(bulkAcquisition);
         var shelfLabel = Ui.Text("Add to shelf", 13, "MutedBrush");
         shelfLabel.Margin = new Thickness(4, 8, 6, 8);
-        bulk.Children.Add(shelfLabel);
+        var shelfEntry = new StackPanel { Orientation = Orientation.Horizontal };
+        shelfEntry.Children.Add(shelfLabel);
         AutomationProperties.SetName(bulkShelf, "Add to shelf");
-        bulk.Children.Add(bulkShelf);
+        shelfEntry.Children.Add(bulkShelf); bulk.Children.Add(shelfEntry);
+        var groupEntry = new StackPanel { Orientation = Orientation.Horizontal };
+        var groupLabel = Ui.Text("Add to group", 13, "MutedBrush"); groupLabel.Margin = new Thickness(4, 8, 6, 8);
+        groupEntry.Children.Add(groupLabel); groupEntry.Children.Add(bulkGroup); bulk.Children.Add(groupEntry);
         bulk.Children.Add(apply);
         bulk.Children.Add(configure);
         remove.Click += async (_, _) =>
@@ -421,17 +439,23 @@ public sealed class MainWindow : Window
         bulk.Children.Add(remove);
         bulk.Children.Add(merge);
         top.Children.Add(bulk);
+        showAllButton.Click += (_, _) => { showAll = !showAll; Populate(); };
+        var paging = new WrapPanel(); paging.Children.Add(resultSummary); paging.Children.Add(showAllButton);
+        top.Children.Add(paging);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         root.Children.Add(results);
         void LoadShelves()
         {
             var previous = shelf.SelectedIndex > 0 ? shelf.SelectedItem as string : null;
-            var names = libraryBooks.SelectMany(book => book.Shelves).ToList();
+            var names = store.LibraryNames().ToList();
             if (previous != null) names.Insert(0, previous);
             restoringShelf = true;
             shelf.ItemsSource = new[] { "All shelves" }.Concat(names.Distinct(StringComparer.OrdinalIgnoreCase).Order()).ToArray();
             if (previous == null) shelf.SelectedIndex = 0;
             else shelf.SelectedItem = previous;
+            var previousGroup = groups.SelectedIndex > 0 ? groups.SelectedItem as string : null;
+            groups.ItemsSource = new[] { "All to-read groups" }.Concat(store.LibraryNames(groups: true)).ToArray();
+            if (previousGroup == null) groups.SelectedIndex = 0; else groups.SelectedItem = previousGroup;
             restoringShelf = false;
         }
 
@@ -439,13 +463,12 @@ public sealed class MainWindow : Window
         {
             var viewport = FindScrollViewer(results.Content as DependencyObject);
             var offset = viewport?.VerticalOffset ?? 0;
-            var selectedBook = ((results.Content as ListBox)?.SelectedItem as ListBoxItem)?.Tag as Book;
+            var selectedBook = (results.Content as DataGrid)?.SelectedItem as LibraryTableRow;
             var anchor = viewport?.CanContentScroll == true && (int)offset < matches.Count ? matches[(int)offset].Id : (Guid?)null;
-            libraryBooks = store.Books();
             LoadShelves();
             Populate();
-            if (results.Content is ListBox list && selectedBook != null)
-                list.SelectedItem = list.Items.OfType<ListBoxItem>().FirstOrDefault(item => ((Book)item.Tag).Id == selectedBook.Id);
+            if (results.Content is DataGrid table && selectedBook != null && bulkEdit.IsChecked != true)
+                table.SelectedItem = table.Items.OfType<LibraryTableRow>().FirstOrDefault(item => item.Book.Id == selectedBook.Book.Id);
             var anchorIndex = anchor.HasValue ? matches.FindIndex(book => book.Id == anchor.Value) : -1;
             if (anchorIndex >= 0) offset = anchorIndex;
             results.UpdateLayout();
@@ -479,15 +502,15 @@ public sealed class MainWindow : Window
         }
         void Populate()
         {
-            var filtered = libraryBooks.Where(b => (excluded.IsChecked == true || !b.Excluded) &&
-                (missingCover.IsChecked != true || b.Editions.All(edition => store.CoverPath(edition) == null)) &&
-                (statusFilter == null || b.Status == statusFilter) &&
-                (shelf.SelectedIndex == 0 || b.Shelves.Contains(shelf.SelectedItem?.ToString() ?? "", StringComparer.OrdinalIgnoreCase)) &&
-                ($"{b.Title} {b.Author} {string.Join(' ', b.Shelves)} {string.Join(' ', b.Editions.Select(e => e.Isbn))}").Contains(search.Text, StringComparison.OrdinalIgnoreCase));
-            var comparer = StringComparer.CurrentCultureIgnoreCase;
-            Func<Book, string> key = sortByAuthor ? book => book.Author : book => book.Title;
-            var ordered = sortDescending ? filtered.OrderByDescending(key, comparer) : filtered.OrderBy(key, comparer);
-            matches = ordered.ThenBy(book => book.Title, comparer).ThenBy(book => book.Author, comparer).ToList();
+            var pageResult = store.Browse(new LibraryQuery(statusFilter,
+                shelf.SelectedIndex > 0 ? shelf.SelectedItem as string : null,
+                groups.SelectedIndex > 0 ? groups.SelectedItem as string : null,
+                search.Text, sortByAuthor, sortDescending, excluded.IsChecked == true,
+                missingCover.IsChecked == true, showAll ? null : 50));
+            matches = pageResult.Books;
+            resultSummary.Text = $"{matches.Count} of {pageResult.Total} matching books  ·  ";
+            showAllButton.Content = showAll ? "Show first 50" : "Show all books";
+            showAllButton.Visibility = showAll || pageResult.Total > 50 ? Visibility.Visible : Visibility.Collapsed;
             selected.IntersectWith(matches.Select(book => book.Id));
             if (selectionAnchor.HasValue && matches.All(book => book.Id != selectionAnchor.Value)) selectionAnchor = null;
             UpdateSelection();
@@ -498,15 +521,28 @@ public sealed class MainWindow : Window
             }
             Func<Book, CheckBox>? selector = bulkEdit.IsChecked == true ? SelectBook : null;
             selectionBoxes.Clear();
-            results.Content = showCovers ? LibraryCovers(matches, selector) : LibraryList(matches, selector);
+            results.Content = showCovers ? LibraryCovers(matches, selector) : LibraryTable.Create(matches, bulkEdit.IsChecked == true,
+                selected, UpdateSelection, Edit, byAuthor =>
+                {
+                    if (sortByAuthor == byAuthor) sortDescending = !sortDescending;
+                    else { sortByAuthor = byAuthor; sortDescending = false; }
+                    updatingSort = true;
+                    sortField.SelectedIndex = sortByAuthor ? 1 : 0;
+                    ascending.IsChecked = !sortDescending; descending.IsChecked = sortDescending;
+                    updatingSort = false;
+                    Populate();
+                }, sortByAuthor, sortDescending);
         }
         foreach (var (button, value) in statusButtons)
-            button.Checked += (_, _) => { statusFilter = value; Populate(); };
-        search.TextChanged += (_, _) => Populate();
-        shelf.SelectionChanged += (_, _) => { if (!restoringShelf) Populate(); };
-        sortField.SelectionChanged += (_, _) => { sortByAuthor = sortField.SelectedIndex == 1; Populate(); };
-        ascending.Checked += (_, _) => { sortDescending = false; Populate(); };
-        descending.Checked += (_, _) => { sortDescending = true; Populate(); };
+            button.Checked += (_, _) => { statusFilter = value; showAll = false; Populate(); };
+        var searchDelay = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        searchDelay.Tick += (_, _) => { searchDelay.Stop(); showAll = false; Populate(); };
+        search.TextChanged += (_, _) => { searchDelay.Stop(); searchDelay.Start(); };
+        shelf.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
+        groups.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
+        sortField.SelectionChanged += (_, _) => { if (!updatingSort) { sortByAuthor = sortField.SelectedIndex == 1; Populate(); } };
+        ascending.Checked += (_, _) => { if (!updatingSort) { sortDescending = false; Populate(); } };
+        descending.Checked += (_, _) => { if (!updatingSort) { sortDescending = true; Populate(); } };
         excluded.Click += (_, _) => Populate();
         missingCover.Click += (_, _) => Populate();
         bulkEdit.Click += (_, _) =>
@@ -703,40 +739,6 @@ public sealed class MainWindow : Window
             }
         }
         section.Children.Add(grid);
-    }
-
-    private ListBox LibraryList(IEnumerable<Book> matches, Func<Book, CheckBox>? selector)
-    {
-        var list = new ListBox();
-        foreach (var book in matches)
-        {
-            var row = new DockPanel();
-            var open = Ui.Button("Open", () => Edit(book));
-            open.VerticalAlignment = VerticalAlignment.Center;
-            AutomationProperties.SetName(open, $"Open {book.Title}");
-            DockPanel.SetDock(open, Dock.Right);
-            row.Children.Add(open);
-            if (selector != null)
-            {
-                var check = selector(book);
-                check.VerticalAlignment = VerticalAlignment.Center;
-                DockPanel.SetDock(check, Dock.Left);
-                row.Children.Add(check);
-            }
-            var cover = Ui.Cover(book, store, 48, 72);
-            cover.Margin = new Thickness(0, 0, 14, 0);
-            DockPanel.SetDock(cover, Dock.Left);
-            row.Children.Add(cover);
-            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            labels.Children.Add(Ui.Heading(book.Title, libraryDisplay.TitleSize));
-            labels.Children.Add(Ui.Text($"{book.Author}  ·  {BookStatus(book)}", libraryDisplay.DetailSize, "MutedBrush"));
-            if (book.Shelves.Count > 0)
-                labels.Children.Add(Ui.Text(string.Join("  /  ", book.Shelves), libraryDisplay.DetailSize, "MutedBrush"));
-            row.Children.Add(labels);
-            list.Items.Add(new ListBoxItem { Content = row, Tag = book });
-        }
-        list.MouseDoubleClick += (_, _) => { if (list.SelectedItem is ListBoxItem { Tag: Book book }) Edit(book); };
-        return list;
     }
 
     private ScrollViewer LibraryCovers(IEnumerable<Book> matches, Func<Book, CheckBox>? selector)

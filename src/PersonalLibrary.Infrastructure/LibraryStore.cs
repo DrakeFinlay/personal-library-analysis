@@ -12,7 +12,7 @@ public sealed record BibliographyText(string Text, string? Hash);
 public sealed record BackupManifest(int Version, DateTimeOffset Created, Dictionary<string, string> Files);
 public sealed record BackupPreview(string Path, DateTimeOffset Created, int Books, int Files);
 
-public sealed class LibraryStore : IDisposable
+public sealed partial class LibraryStore : IDisposable
 {
     private const string ReadingSectionsKey = "reading-sections";
     private static readonly ReadingSection DailyReads = new(new Guid("452199dd-fd56-4fc0-a3d7-7008c0902c9d"), "Daily Reads");
@@ -194,6 +194,8 @@ public sealed class LibraryStore : IDisposable
             book.UpdatedAt = DateTimeOffset.Now;
             book.Title = book.Title.Trim();
             book.Shelves = book.Shelves.Select(s => s.Trim()).Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            book.ToReadGroups = book.ToReadGroups.Select(group => group.Trim()).Where(group => group.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             id.Value = book.Id.ToString();
             document.Value = JsonSerializer.Serialize(book, Json);

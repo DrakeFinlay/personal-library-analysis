@@ -12,7 +12,8 @@ internal static class GoodreadsChecks
     {
         using var store = new LibraryStore(Path.Combine(workspace, "goodreads-target"));
         var matching = new Book { Title = "Old local title", Author = "Synthetic Writer", Notes = "Private notes", Review = "Old review",
-            Rating = 2, Shelves = ["local shelf"], Status = ReadingStatus.ToRead, ReadNext = true };
+            Rating = 2, Shelves = ["local shelf"], ToReadGroups = ["Further biblical research"],
+            PlannedReadingYears = [2026], Status = ReadingStatus.ToRead, ReadNext = true };
         matching.SelectedEdition.Isbn = "0-9802004-4-X";
         matching.SelectedEdition.Holdings = ["Ebook"];
         matching.SelectedEdition.PageCount = 75;
@@ -60,9 +61,10 @@ internal static class GoodreadsChecks
             "Goodreads wins overlapping reading and work fields and preserves quoted CSV text");
         check(synced.Calibre?.BookId == matching.Calibre.BookId && synced.SelectedEdition.Holdings.Single() == "Ebook" &&
             synced.SelectedEdition.Publisher == "Sample Press" &&
+            synced.ToReadGroups.SequenceEqual(["Further biblical research"]) && synced.PlannedReadingYears.SequenceEqual([2026]) &&
             synced.SelectedEdition.PageCount == 80 && synced.Notes == "Private notes" && store.Bibliography(matching.Id).Text == "# Local bibliography" &&
             synced.Readings.Single().Finished == new DateOnly(2025, 1, 5) && synced.Readings.Single().Progress.Single().Value == 30,
-            "ISBN reconciliation keeps the existing Calibre link, ownership, bibliography, notes, and reading progress");
+            "ISBN reconciliation keeps the existing Calibre link, ownership, bibliography, groups, annual plans, notes, and reading progress");
         var toRead = imported[differentEdition.Id];
         check(toRead.Editions.Count == 2 && toRead.SelectedEdition.Id == differentEdition.SelectedEdition.Id &&
             toRead.SelectedEdition.PageCount == 90 && toRead.Editions.Single(edition => edition.Id == toRead.Goodreads!.EditionId).PageCount == 121 &&

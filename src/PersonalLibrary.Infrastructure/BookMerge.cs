@@ -47,6 +47,7 @@ internal static class BookMerge
         book.ReadNext = book.Status == ReadingStatus.ToRead && (book.ReadNext || other.ReadNext);
         book.Excluded |= other.Excluded;
         book.Shelves.AddRange(other.Shelves);
+        book.ToReadGroups.AddRange(other.ToReadGroups);
         book.PlannedReadingYears = book.PlannedReadingYears.Union(other.PlannedReadingYears).Order().ToList();
         book.Calibre ??= other.Calibre;
         book.Goodreads ??= other.Goodreads;

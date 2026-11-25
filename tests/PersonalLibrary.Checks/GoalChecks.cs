@@ -32,11 +32,12 @@ internal static class GoalChecks
             var saved = store.Books().Single();
             check(saved.PlannedReadingYears.SequenceEqual([2027]) && saved.Readings.Count == 2,
                 "Title plans survive reopening and removing from one year preserves other years and history");
-            var other = new Book { Title = "Another Imaginary Journey", PlannedReadingYears = [2028] };
+            saved.ToReadGroups = ["Research for a book"]; store.Save(saved);
+            var other = new Book { Title = "Another Imaginary Journey", PlannedReadingYears = [2028], ToReadGroups = ["Biblical research"] };
             store.Save(other);
             store.MergeBooks(saved, other);
-            check(store.Books().Single().PlannedReadingYears.SequenceEqual([2027, 2028]),
-                "Merging books preserves title plans from both records");
+            check(store.Books().Single().PlannedReadingYears.SequenceEqual([2027, 2028]) && store.Books().Single().ToReadGroups.Count == 2,
+                "Merging books preserves title plans and groups from both records");
         }
         var now = DateTimeOffset.Now;
         var recent = Enumerable.Range(0, 15).Select(i => new Book

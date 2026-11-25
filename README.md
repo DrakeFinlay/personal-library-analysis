@@ -36,8 +36,13 @@ Keep the accompanying binaries, notices, and license files together.
 
 ## Using the first build
 
-Switch between List and Covers in My Books. The search and filters apply to both
-views. The Home sidebar shows the ten most recently changed books across reading
+My Books starts with **To read** in a compact text **Table**, loading the first
+50 matching books. Choose a status on the far left, then a shelf or user-defined
+to-read group above the table. **Show all books** loads the full filtered range.
+**Covers** remains optional. See [library browsing and groups](.docs/LIBRARY-BROWSING.md)
+for selection, sorting, and group-assignment steps.
+
+The Home sidebar shows the ten most recently changed books across reading
 statuses, newest save first. Select a title to open it. Imports and batch saves
 also count as changes; excluded books are omitted.
 
@@ -74,7 +79,7 @@ Goodreads ZIP** before choosing the CSV. The app uses its reading sessions to
 fill start dates and recover dated rereads for titles unique in the CSV.
 
 In **My Books**, enable **Bulk edit**, select individual books or **Select all
-results**, choose a status or enter a shelf name, then apply. Changing filters
+shown**, choose a status or enter a shelf or group name, then apply. Changing filters
 keeps only the selected books still in the results. Marking a book Read in bulk
 leaves the date unknown when the book has no prior completion.
 
