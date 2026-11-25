@@ -110,3 +110,76 @@ button. The original reference is shown so you can review a possible match.
 Close and reopen this view to refresh it after bibliography or library edits.
 Matching uses normalized titles (including subtitles) and available author
 evidence; ambiguous records remain possible matches rather than accepted links.
+
+## Explore citation chains and cross connections
+
+Open **Bibliographies → Connections & citation stats**. This reads all saved EPUB,
+online, and pasted/scanned bibliographies locally. It includes cited works outside
+My Books. Nothing is changed by opening or exploring the graph.
+
+An arrow means **citing book → cited work**. For example, if a later source cites
+a history book and that history book cites a poem, the two arrows form a chain.
+Other sources citing the same poem form additional branches. A chain does not
+mean that its first source directly cites every work farther along it.
+
+1. Find a title or author in the left search box. Select it, then choose **Focus
+   selected**. The initial view shows its immediate references and citing books.
+2. Choose **Steps** (1–5) before focusing to load a wider neighborhood. Selecting
+   another work shows its details without replacing your current focus.
+3. Select a node, then **Expand selected** to add its immediate references and
+   citing books. Existing branches stay visible, so you can expand several works
+   and see their cross connections at the same time.
+4. To trace between works, focus the first, find/select the second in the search
+   results, and choose **Trace from focus**. A shortest connection is highlighted
+   in orange. The path can traverse arrows in either direction; each arrow keeps
+   the actual citation direction. Other visible branches remain available.
+5. Use the zoom slider and scrollbars to inspect the network. **Fit graph** fits
+   the visible works together; focusing, expanding and tracing also refit the
+   view. **Reset** returns to the focused work's chosen step count.
+6. Select an arrow or a **Cited by / References** button in the details panel to
+   read its evidence passages, source section and location. **Open source
+   bibliography** opens the original reader. **Select citing work** and **Select
+   cited work** let you continue exploring either end of that connection.
+
+Light green nodes are in My Books. Gray nodes are external works or ambiguous
+library matches. Identities are inferred from citation titles and author evidence;
+these are not accepted citation relationships. Ambiguous matches remain separate
+instead of connecting arbitrarily to several library records. Matching can miss
+OCR errors, translated titles, shortened names and variant titles. External
+titles without author evidence are grouped within one source only, so incomplete
+records can undercount repeated works. Text-only notes remain in their source
+bibliographies and do not create invented work nodes.
+
+Parts, volumes, translations and parent works are not automatically merged. For
+example, citations naming **Inferno** and **Paradiso** remain those works, rather
+than being relabeled as **The Divine Comedy**. Only identifiable saved citations
+create edges; missing or unrecognized bibliographies cannot supply a chain yet.
+
+The search shows the first 100 matching works; refine it to find a specific title.
+A focused view shows up to 120 works, and expansion up to 160. Hidden-neighbor
+messages explain when a limit is reached; focus a narrower branch to continue.
+All direct cross connections between visible nodes are drawn. These display
+limits do not limit the statistics or shortest-path search. Close and reopen the
+window after changing bibliography data to load a fresh snapshot.
+
+## Statistics for repeatedly cited works
+
+In the same window, select **Repeatedly cited works**. By default it lists works
+cited by at least two distinct source books, sorted by that source count and
+then by evidence count. Filter by title/author, or click column headings to sort.
+Double-click a row or choose **Explore selected work** to open its graph.
+
+- **Citing books** counts distinct source-book records, regardless of rating,
+  ownership or reading status. Excluded books do not contribute.
+- **Evidence passages** counts distinct citation text within each source. Duplicate
+  copies across EPUB/online/text count once for that source–target connection.
+  Several references in one note may point to different works; the full note can
+  be the evidence for each. This is not an exact count of all printed mentions.
+- **Also show repeated evidence within a single source** includes works with
+  several distinct passages even if only one source book cites them.
+
+Counts cover your saved bibliography set, including inferred external works.
+They do not measure worldwide citations or count indirect/transitive citations.
+Different author/title variants can remain separate until the source is corrected
+or a future identity-review workflow reconciles them. The original evidence stays
+available for checking the grouping.

@@ -851,6 +851,8 @@ public sealed class MainWindow : Window
         var cited = Ui.Button("Cited books in My Books", () =>
             new LocalCitedBooksWindow(store, (book, citation) => OpenBibliography(book, citation)) { Owner = this }.ShowDialog());
         actions.Children.Add(cited);
+        actions.Children.Add(Ui.Button("Connections & citation stats", () =>
+            new BibliographyConnectionsWindow(store, (book, citation) => OpenBibliography(book, citation)) { Owner = this }.ShowDialog()));
         var findOnline = Ui.Button("Find Bibliography Online", () =>
         {
             if (ChooseBibliographyBook("Find Bibliography Online") is { } book &&

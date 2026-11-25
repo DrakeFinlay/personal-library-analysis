@@ -112,6 +112,13 @@ reviewable. Original photos, selected areas and raw OCR evidence are retained.
 bibliographies and shows which sources cite them. See the
 [bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and extraction limitations.
 
+**Bibliographies → Connections & citation stats** opens an interactive citation
+network. Focus a work, expand several branches, trace paths, zoom, and inspect
+the original evidence behind each arrow. **Repeatedly cited works** ranks titles
+by distinct citing books and evidence passages across your saved bibliography
+set, including cited works outside My Books. Identities remain inferred; ambiguous
+matches and separate parts/volumes are not silently merged.
+
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.
 Use a blank date for undated reading history. Set shelves, ratings,

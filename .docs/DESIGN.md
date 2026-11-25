@@ -492,8 +492,16 @@ hash. Preserve local EPUB citations and editable Markdown alongside it.
 
 External incoming discovery may use OpenAlex/OpenCitations/Crossref after measuring
 coverage. An empty result means no known indexed result, not no citations. A
-citation is a relationship, not evidence of endorsement. Interactive network
-visualization is an important later deliverable; relational linked lists come first.
+citation is a relationship, not evidence of endorsement. A local interactive
+network now visualizes inferred citation connections from saved bibliographies,
+including cited works outside My Books. Traverse incoming/outgoing neighborhoods,
+expand multiple branches, highlight shortest undirected connection paths while
+retaining each edge's citation direction, and inspect original evidence.
+Display limits must not truncate corpus-wide statistics. Count distinct citing
+source books separately from deduplicated evidence passages. Ambiguous identities
+must not create false bridges, and text-only unresolved notes must not invent
+works. Accepted/manual identity relationships, part/parent grouping and graph
+export remain later work.
 
 ## 9. Recommendations
 
@@ -691,10 +699,12 @@ the initial shortlists are useful.
 Sortable/bulk-editable table and keyboard/mouse Cover
 Flow; ebook-derived word counts, more statistics and richer classification driven by use; EPUB/PDF/image
 bibliography extraction and OCR; external Markdown change recognition; external
-incoming-citation discovery; interactive citation graph; optional larger offline
+incoming-citation discovery; accepted citation identities and graph export; optional larger offline
 catalog; later Anki vocabulary workflow. These are planned follow-ups, not silent
 requirements for the first runnable release. Sequence them according to user
-feedback; the citation graph remains an explicit later goal.
+feedback. The local inferred citation graph, sortable table, EPUB import and photo
+OCR have since been implemented; broader identity reconciliation and research
+integrations remain follow-ups.
 
 ## 13. Verification and delivery practices
 

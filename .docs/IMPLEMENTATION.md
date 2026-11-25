@@ -768,6 +768,40 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   citation relationships remain limitations. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md)
   for the workflow and how to use smaller areas for difficult pages.
 
+## Bibliography connections and repeated-work statistics
+
+- Bibliographies offers **Connections & citation stats**, a local snapshot of
+  saved EPUB, online and pasted/scanned citations. Work nodes include sources,
+  inferred library matches and external cited works. Ambiguous library matches
+  remain separate; missing-author external records stay source-specific. Exact
+  duplicate citation text within a source–target pair is counted once.
+- Native WPF graph shows directed arrows, title search, 1–5-step neighborhoods,
+  expansion of several branches together, shortest connection paths, zoom/fit,
+  and evidence/source-reader navigation. Arrows retain their citation direction
+  even when a path is traversed backwards. Initial views cap at 120 nodes and
+  expanded views at 160, with omission messages. Paths and statistics use the
+  entire graph, including direct cross edges among visible works.
+- Repeatedly cited works lists distinct citing books and evidence passages with
+  sortable columns, title/author filtering, an option for repeated evidence from
+  one source, and navigation back into the graph. No ratings or ownership filter
+  applies; excluded records remain out of scope. Graph exploration does not save
+  book changes or accepted citation identities.
+- All 239 executable checks passed, covering chains, parallel branches, cycles,
+  self references, external work grouping, duplicates, distinct-source counts,
+  ambiguity, missing-author/text-only entries, display limits, empty paths and
+  read-only persisted snapshots. Release build passed with no warnings/errors.
+  The regular Windows launcher was published after the graph-fitting refinement.
+- An isolated TEST PROFILE verified expansion without removing branches, a
+  two-step highlighted chain, repeated-work rows including an external work,
+  navigation from statistics into the graph, evidence detail and opening the
+  correct source citation. A read-only normal-data evaluation built 35 sources,
+  5,508 work nodes and 5,491 connections in about 0.4 seconds, with 15 works cited
+  by multiple books. These are snapshot counts, not general accuracy benchmarks.
+- Identity grouping remains conservative and inference-based. Title/name/OCR
+  variants can split counts; parts such as Inferno and Paradiso remain distinct
+  from a parent work. Accepted identities, alias/part grouping, graph export and
+  external citation discovery remain later work. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
@@ -776,7 +810,7 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - Description and review interpretation, embeddings, and broader catalog
   discovery remain later recommendation work. Direct PDF extraction, automatic
   external Markdown watching, visual browsing modes beyond the table and cover
-  grid, citation graph, and Anki integration remain later stages.
+  grid, accepted citation identities/part grouping, and Anki integration remain later stages.
 - Initial backups contain complete profile copies. The retention policy keeps 14
   daily and 4 weekly archives; manual/pre-restore archives are retained. Large-source
   deduplication is deferred until document import makes it useful.
