@@ -604,6 +604,27 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - Plans use existing library titles and alphabetical order; manual ordering and
   free-text titles outside My Books are not included.
 
+## Bibliography photo import and combined local citations
+
+- Bibliographies offers Import bibliography photos directly. Choose a source
+  book and images, scan offline, correct the draft, review citations/local matches,
+  then save. Cancellation preserves successfully scanned pages in the draft;
+  individual page failures are reported. Saved originals and Markdown revisions
+  use the existing backup and external-edit protections.
+- Cited books in My Books combines local matches across EPUB, online, and saved
+  pasted/scanned text, without a rating, ownership, or reading-status requirement.
+  Titles are deduplicated and retain original citation evidence and source links.
+  Individual and combined bibliography views share matching rules. Wrapped OCR
+  lines and lost italics can match known library titles with author evidence.
+- Synthetic checks verify source deduplication, author mismatches, and combined
+  persisted text/EPUB evidence. In an isolated TEST PROFILE, scanned a fictional
+  page, reviewed two local matches, and saved the text and retained original PNG.
+  Verified the combined view showed one existing title with two citing sources.
+- Matches remain suggestions. Unsupported citation styles, OCR spelling errors,
+  columns, and missing author/title evidence can prevent matching. Complete text
+  is still saved. Other image formats depend on installed Windows codecs; OCR
+  requires an installed Windows OCR language. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

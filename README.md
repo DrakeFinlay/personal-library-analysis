@@ -7,8 +7,8 @@ Start with the [approved design](.docs/DESIGN.md) and
 [implementation status](.docs/IMPLEMENTATION.md).
 
 The offline tracker includes Calibre and Goodreads imports and optional online
-book lookup. Development uses synthetic fixtures. Advanced statistics,
-recommendations, OCR, and Cover Flow follow in later stages.
+book lookup, statistics, recommendations, and offline bibliography OCR.
+Development uses synthetic fixtures. Cover Flow remains planned.
 
 Stack: C#/.NET 10, WPF, and SQLite, consistent with the neighboring projects.
 Personal profiles, downloads, models, backups, and build output stay outside Git.
@@ -87,6 +87,12 @@ The book editor's **Bibliography** tab can extract a dedicated bibliography
 from its linked EPUB. **Browse EPUB citations** opens search, sections, the
 original citation text, and possible matches in My Books. Your Markdown notes
 are saved separately.
+
+In **Bibliographies**, use **Import bibliography photos…** to scan page images
+offline, correct their text, review possible local matches, and save to a source
+book. **Cited books in My Books** combines matching library titles from all saved
+bibliographies and shows which sources cite them. See the
+[bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and OCR limitations.
 
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.

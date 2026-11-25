@@ -819,7 +819,9 @@ public sealed class MainWindow : Window
     private UIElement Bibliographies()
     {
         var root = new DockPanel();
-        var header = new DockPanel { Margin = new Thickness(0, 0, 12, 8), LastChildFill = true };
+        var header = new StackPanel { Margin = new Thickness(0, 0, 12, 8) };
+        header.Children.Add(Ui.Heading("Bibliographies"));
+        var actions = new WrapPanel(); header.Children.Add(actions);
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
         var add = Ui.Button("Add Bibliography", () =>
@@ -829,7 +831,17 @@ public sealed class MainWindow : Window
                 RefreshPage();
         }, true);
         DockPanel.SetDock(add, Dock.Right);
-        header.Children.Add(add);
+        actions.Children.Add(add);
+        var photos = Ui.Button("Import bibliography photos…", () =>
+        {
+            if (ChooseBibliographyBook("Import bibliography photos") is not { } book) return;
+            if (new BibliographyTextWindow(store, book, startEditing: true, scanOnOpen: true) { Owner = this }.ShowDialog() == true)
+                RefreshPage();
+        });
+        actions.Children.Add(photos);
+        var cited = Ui.Button("Cited books in My Books", () =>
+            new LocalCitedBooksWindow(store, (book, citation) => OpenBibliography(book, citation)) { Owner = this }.ShowDialog());
+        actions.Children.Add(cited);
         var findOnline = Ui.Button("Find Bibliography Online", () =>
         {
             if (ChooseBibliographyBook("Find Bibliography Online") is { } book &&
@@ -837,10 +849,9 @@ public sealed class MainWindow : Window
                 RefreshPage();
         });
         DockPanel.SetDock(findOnline, Dock.Right);
-        header.Children.Add(findOnline);
-        header.Children.Add(Ui.Heading("Bibliographies"));
+        actions.Children.Add(findOnline);
 
-        var grid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 12, 0) };
+        var grid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top };
         var found = books.Where(book => File.Exists(store.BibliographyPath(book.Id)) || store.HasEpubBibliography(book.Id) ||
                 store.HasOnlineBibliography(book.Id))
             .OrderBy(book => book.Title, StringComparer.CurrentCultureIgnoreCase)

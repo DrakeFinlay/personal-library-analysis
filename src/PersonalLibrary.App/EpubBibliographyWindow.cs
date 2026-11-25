@@ -18,7 +18,7 @@ internal sealed class EpubBibliographyWindow : Window
         : citation.Author.Length == 0 ? citation.Title : $"{citation.Title} — {citation.Author}";
 
     public EpubBibliographyWindow(LibraryStore store, Book book, EpubBibliography bibliography,
-        EpubCitation? selectedCitation = null, bool showAlternate = true)
+        EpubCitation? selectedCitation = null, bool showAlternate = true, bool draftPreview = false)
     {
         Title = book.Title + " — Bibliography";
         Style = (Style)Application.Current.FindResource(typeof(Window));
@@ -54,20 +54,9 @@ internal sealed class EpubBibliographyWindow : Window
             if (new BibliographyTextWindow(store, book, startEditing: true) { Owner = this }.ShowDialog() == true)
                 personal.Visibility = Visibility.Visible;
         }));
-        var library = store.Books().Where(candidate => candidate.Id != book.Id && !candidate.Excluded)
-            .Select(candidate => (Book: candidate, Title: Normalize(candidate.Title),
-                ShortTitle: Normalize(candidate.Title.Split(':', 2)[0]), Author: $" {Normalize(candidate.Author)} ")).ToArray();
-        var rows = bibliography.Entries.Select(citation =>
-        {
-            var title = Normalize(citation.Title);
-            var shortTitle = Normalize(citation.Title.Split(':', 2)[0]);
-            var surname = Normalize(citation.Author.Contains(',') ? citation.Author.Split(',', 2)[0]
-                : citation.Author.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "");
-            var matches = library.Where(item => shortTitle.Length >= 6 && (item.Title == title || item.ShortTitle == shortTitle)
-                && (surname.Length == 0 || item.Author.Contains($" {surname} ", StringComparison.Ordinal)))
-                .Select(item => item.Book).ToArray();
-            return new Row(citation, matches);
-        }).ToArray();
+        if (draftPreview) actions.Visibility = Visibility.Collapsed;
+        var library = store.Books().Where(candidate => candidate.Id != book.Id).ToArray();
+        var rows = bibliography.Entries.Select(citation => new Row(citation, BibliographyMatches.Find(citation, library))).ToArray();
         var sourceLabel = onlineSource == null ? bibliography.SourceFile
             : string.Join(" · ", new[] { onlineSource.Provider, onlineSource.Title, onlineSource.Date }.Where(value => value.Length > 0));
         header.Children.Add(Ui.Text($"{rows.Length} citations · {rows.Count(row => row.Matches.Length > 0)} with possible local matches · {sourceLabel}", 14, "MutedBrush"));

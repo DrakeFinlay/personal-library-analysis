@@ -6,7 +6,7 @@ namespace PersonalLibrary.App;
 
 internal static class BibliographyOcr
 {
-    public static async Task<string> ReadAsync(string path)
+    public static async Task<string> ReadAsync(string path, CancellationToken cancellationToken = default)
     {
         using var script = new StreamReader(typeof(BibliographyOcr).Assembly
             .GetManifestResourceStream("PersonalLibrary.BibliographyOcr.ps1")!);
@@ -27,12 +27,14 @@ internal static class BibliographyOcr
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Windows OCR could not start.");
         var output = process.StandardOutput.ReadToEndAsync();
         var errors = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(1));
         try { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             if (!process.HasExited) process.Kill();
             await process.WaitForExitAsync();
+            cancellationToken.ThrowIfCancellationRequested();
             throw new InvalidOperationException("Windows OCR timed out on this image.");
         }
         if (process.ExitCode != 0) throw new InvalidOperationException((await errors).Trim());

@@ -122,6 +122,14 @@ pasted text or text recovered from page photos to a source book in My Books.
 Review and edit the text before saving it as Markdown. A successful parser or
 online match is never a prerequisite for saving.
 
+Import bibliography photos is available directly on Bibliographies. Offline
+Windows OCR supports multiple pages in filename order, cancellation, editable
+review, and a preview of identifiable citations and local matches before saving.
+Unrecognized text and original images are retained. Cited books in My Books
+combines possible matches across EPUB, online, and pasted/scanned bibliographies,
+deduplicates library works, and links each to its source evidence. All reading
+statuses and ownership states are eligible; excluded records are omitted.
+
 ### Settings
 
 Theme, profile/resource locations, backup/restore, source connections, background

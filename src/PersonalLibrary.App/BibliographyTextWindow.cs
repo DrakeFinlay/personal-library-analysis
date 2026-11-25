@@ -9,7 +9,7 @@ namespace PersonalLibrary.App;
 
 internal sealed class BibliographyTextWindow : Window
 {
-    public BibliographyTextWindow(LibraryStore store, Book book, bool startEditing = false)
+    public BibliographyTextWindow(LibraryStore store, Book book, bool startEditing = false, bool scanOnOpen = false)
     {
         Title = $"{book.Title} — Bibliography";
         Style = (Style)Application.Current.FindResource(typeof(Window));
@@ -23,6 +23,7 @@ internal sealed class BibliographyTextWindow : Window
         var draftImages = new List<string>();
         DirectoryInfo? staging = null;
         var scanning = false;
+        CancellationTokenSource? scanCancellation = null;
         var root = new DockPanel { Margin = new Thickness(22) };
         var heading = new StackPanel();
         heading.Children.Add(Ui.Heading(book.Title));
@@ -48,6 +49,18 @@ internal sealed class BibliographyTextWindow : Window
         root.Children.Add(text);
         var edit = new Button { Content = "Edit bibliography" };
         var scan = new Button { Content = "Scan images…" };
+        var cancelScan = Ui.Button("Cancel scan", () => scanCancellation?.Cancel());
+        cancelScan.Visibility = Visibility.Collapsed;
+        var review = Ui.Button("Review citations / local matches", () =>
+        {
+            var library = store.Books();
+            var entries = BibliographyMatches.ReadText(text.Text, library);
+            if (entries.Length == 0)
+                throw new InvalidOperationException("No identifiable citations yet. The complete text can still be saved. Correct OCR errors and separate references with blank lines, then review again.");
+            var preview = new EpubBibliography("Editable bibliography text", "",
+                ["Possible matches only. OCR can lose formatting; unrecognized text is preserved in the text editor. Review and correct before saving."], entries, 0);
+            new EpubBibliographyWindow(store, book, preview, showAlternate: false, draftPreview: true) { Owner = this }.ShowDialog();
+        });
         var save = Ui.Button("Save bibliography", () =>
         {
             if (string.IsNullOrWhiteSpace(text.Text))
@@ -56,7 +69,7 @@ internal sealed class BibliographyTextWindow : Window
             DialogResult = true;
         }, true);
         var close = Ui.Button("Close", Close);
-        foreach (var button in new[] { edit, scan, save, close }) actions.Children.Add(button);
+        foreach (var button in new[] { edit, scan, cancelScan, review, save, close }) actions.Children.Add(button);
         edit.Click += (_, _) => SetEditing(true);
 
         scan.Click += async (_, _) =>
@@ -70,13 +83,16 @@ internal sealed class BibliographyTextWindow : Window
             if (picker.ShowDialog(this) != true) return;
             var files = picker.FileNames.OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase).ToArray();
             scanning = true;
-            scan.IsEnabled = save.IsEnabled = close.IsEnabled = false;
+            scanCancellation = new CancellationTokenSource();
+            cancelScan.Visibility = Visibility.Visible;
+            scan.IsEnabled = review.IsEnabled = save.IsEnabled = close.IsEnabled = false;
             var failures = new List<string>();
             try
             {
                 staging ??= Directory.CreateTempSubdirectory("personal-library-ocr-");
                 for (var index = 0; index < files.Length; index++)
                 {
+                    scanCancellation.Token.ThrowIfCancellationRequested();
                     var filename = Path.GetFileName(files[index]);
                     status.Text = $"Scanning {index + 1} of {files.Length} · {filename}";
                     try
@@ -84,23 +100,27 @@ internal sealed class BibliographyTextWindow : Window
                         var folder = staging.CreateSubdirectory(Guid.NewGuid().ToString("N"));
                         var staged = Path.Combine(folder.FullName, filename);
                         await Task.Run(() => File.Copy(files[index], staged));
-                        var recognized = await BibliographyOcr.ReadAsync(staged);
+                        var recognized = await BibliographyOcr.ReadAsync(staged, scanCancellation.Token);
                         if (recognized.Length == 0) throw new InvalidOperationException("No text was recognized.");
                         draftImages.Add(staged);
                         text.AppendText((text.Text.Length > 0 ? "\n\n" : "") + recognized);
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex) { failures.Add($"{filename} · {ex.Message}"); }
                 }
                 status.Text = failures.Count == 0
-                    ? "Review the scanned text, then save the bibliography."
+                    ? "Review the scanned text and use Review citations / local matches, then save. Pages are scanned in filename order."
                     : string.Join("\n", failures.Take(3)) + (failures.Count > 3 ? $"\n{failures.Count - 3} more images failed." : "");
                 text.ScrollToEnd();
             }
+            catch (OperationCanceledException) { status.Text = "Scan cancelled. Successfully scanned pages remain in your draft for review."; }
             catch (Exception ex) { status.Text = ex.Message; }
             finally
             {
                 scanning = false;
-                scan.IsEnabled = save.IsEnabled = close.IsEnabled = true;
+                scan.IsEnabled = review.IsEnabled = save.IsEnabled = close.IsEnabled = true;
+                cancelScan.Visibility = Visibility.Collapsed;
+                scanCancellation.Dispose(); scanCancellation = null;
             }
         };
         Closing += (_, args) =>
@@ -118,6 +138,7 @@ internal sealed class BibliographyTextWindow : Window
         };
         Content = root;
         SetEditing(startEditing);
+        if (scanOnOpen) Loaded += (_, _) => scan.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
         void SetEditing(bool editing)
         {
