@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using PersonalLibrary.Core;
 
 namespace PersonalLibrary.App;
 
 internal static class BibliographyOcr
 {
-    public static async Task<string> ReadAsync(string path, CancellationToken cancellationToken = default)
+    public static async Task<OcrPage> ReadAsync(string path, CancellationToken cancellationToken = default)
     {
         using var script = new StreamReader(typeof(BibliographyOcr).Assembly
             .GetManifestResourceStream("PersonalLibrary.BibliographyOcr.ps1")!);
@@ -38,6 +40,7 @@ internal static class BibliographyOcr
             throw new InvalidOperationException("Windows OCR timed out on this image.");
         }
         if (process.ExitCode != 0) throw new InvalidOperationException((await errors).Trim());
-        return (await output).Trim();
+        return JsonSerializer.Deserialize<OcrPage>((await output).Trim())
+            ?? throw new InvalidOperationException("Windows OCR returned no page information.");
     }
 }

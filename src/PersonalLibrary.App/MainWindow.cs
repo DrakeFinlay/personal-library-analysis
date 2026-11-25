@@ -637,7 +637,8 @@ public sealed class MainWindow : Window
 
         IEnumerable<EpubCitation> ReadCitations(Guid id) =>
             (store.ReadEpubBibliography(id)?.Entries ?? []).Concat(store.ReadOnlineBibliography(id)?.Entries ?? [])
-                .Concat(CitedRecommendations.ReadText(store.Bibliography(id).Text));
+                .Concat(CitedRecommendations.ReadText(store.Bibliography(id).Text))
+                .Concat(NoteReferences.Read(store.Bibliography(id).Text));
     }
 
     private static string CitationPreferenceKey(CitedRecommendation pick) =>

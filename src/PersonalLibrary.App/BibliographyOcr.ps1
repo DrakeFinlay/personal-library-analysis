@@ -36,7 +36,47 @@ try {
         )) ([Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, ContentType=WindowsRuntime])
         try {
             $result = Get-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType=WindowsRuntime])
-            foreach ($line in $result.Lines) { [Console]::WriteLine($line.Text) }
+            $lines = @($result.Lines | ForEach-Object {
+                @{ Text = $_.Text; Words = @($_.Words | ForEach-Object {
+                    @{ Text = $_.Text; X = $_.BoundingRect.X; Y = $_.BoundingRect.Y; Width = $_.BoundingRect.Width; Height = $_.BoundingRect.Height }
+                }) }
+            })
+            # Short overlapping bands reduce the effect of different baselines
+            # across a curved page. Only each band's central rows are retained;
+            # overlap protects letters at a cut without duplicating citations.
+            $wholePageLines = $lines
+            if ($bitmap.PixelHeight -gt 1400 -and $env:PERSONAL_LIBRARY_OCR_WHOLE_ONLY -ne '1') {
+                $bandLines = [System.Collections.Generic.List[object]]::new()
+                $bandHeight = 900
+                for ($start = 0; $start -lt $bitmap.PixelHeight; $start += $bandHeight) {
+                    $top = [Math]::Max(0, $start - 180)
+                    $bottom = [Math]::Min($bitmap.PixelHeight, $start + $bandHeight + 180)
+                    $bandTransform = [Windows.Graphics.Imaging.BitmapTransform]::new()
+                    $bounds = [Windows.Graphics.Imaging.BitmapBounds, Windows.Graphics.Imaging, ContentType=WindowsRuntime]::new()
+                    $bounds.X = 0; $bounds.Y = [uint32]$top; $bounds.Width = [uint32]$bitmap.PixelWidth; $bounds.Height = [uint32]($bottom - $top)
+                    $bandTransform.Bounds = $bounds
+                    $bandBitmap = Get-Result ($decoder.GetSoftwareBitmapAsync(
+                        [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Ignore,
+                        $bandTransform, [Windows.Graphics.Imaging.ExifOrientationMode]::RespectExifOrientation,
+                        [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage
+                    )) ([Windows.Graphics.Imaging.SoftwareBitmap])
+                    try {
+                        $band = Get-Result ($engine.RecognizeAsync($bandBitmap)) ([Windows.Media.Ocr.OcrResult])
+                        foreach ($line in $band.Lines) {
+                            $centers = @($line.Words | ForEach-Object { $_.BoundingRect.Y + $_.BoundingRect.Height / 2 } | Sort-Object)
+                            if ($centers.Count -eq 0) { continue }
+                            $center = $centers[[int][Math]::Floor($centers.Count / 2)] + $top
+                            if ($center -lt $start -or $center -ge [Math]::Min($bitmap.PixelHeight, $start + $bandHeight)) { continue }
+                            $words = @($line.Words | ForEach-Object { @{ Text = $_.Text; X = $_.BoundingRect.X;
+                                Y = $_.BoundingRect.Y + $top; Width = $_.BoundingRect.Width; Height = $_.BoundingRect.Height } })
+                            $bandLines.Add(@{ Text = $line.Text; Words = $words })
+                        }
+                    } finally { $bandBitmap.Dispose() }
+                }
+                if ($bandLines.Count -gt 0) { $lines = @($bandLines.ToArray()) }
+            }
+            @{ Width = $bitmap.PixelWidth; Height = $bitmap.PixelHeight; Angle = $result.TextAngle;
+               Language = $engine.RecognizerLanguage.LanguageTag; Lines = $lines; WholePageLines = $wholePageLines } | ConvertTo-Json -Depth 8 -Compress
         } finally { $bitmap.Dispose() }
     } finally { $stream.Dispose() }
 } catch {

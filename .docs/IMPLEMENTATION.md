@@ -734,6 +734,40 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   and accepted citation edges remain outside this workflow. Practical steps and
   limitations are in [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
 
+## Photo bibliography and mixed-note import
+
+- Added manual four-corner page/text selection before scanning, left/right/whole
+  presets, a straightened preview, per-photo acceptance/skipping, and additional
+  areas from the same photo. Orientation-corrected grayscale areas are projected
+  to rectangles with optional local illumination normalization; no additional
+  models or OCR downloads are required. The original photo remains unchanged.
+- Windows OCR now returns word positions/language and preserves both whole-page
+  and overlapping-band recognition for tall areas. Reconstruct wrapped paragraphs
+  and numbered notes, flag possible missing note numbers/slant, and label each
+  photo/area. Saving retains the original, prepared PNG, crop and raw OCR JSON
+  alongside existing Markdown revisions and attachment audit history.
+- Review recognizes multiple full publication references in one note and keeps
+  full-note review entries, including unresolved short forms and commentary.
+  Possible known-title matches can tolerate lost spaces with author evidence;
+  identities and absent content are never accepted or filled in automatically.
+- Local evaluation used IMG_2792, IMG_2815 and IMG_2829 from the supplied photo
+  set. Selected areas removed acknowledgments/facing-page/underlying-page text;
+  mixed notes were reconstructed as readable paragraphs. Remaining spelling,
+  spacing and note-number errors are visible, particularly on the curved page.
+  This is a three-photo evaluation, not an accuracy claim for the entire set.
+- An isolated TEST PROFILE verified corner dragging, straightened preview,
+  acceptance, offline recognition, reference/full-note review, local matches and
+  explicit saving. Evidence-file verification exposed a serialization bug, fixed
+  with a named evidence record and a production-settings round-trip check.
+  A second UI scan verified the saved JSON contains its source, crop coordinates,
+  language, six recognized lines and 27 words. All 228 executable checks passed;
+  the Release build passed without warnings/errors and the Windows launcher was
+  published. No normal-profile bibliography was overwritten during evaluation.
+- Manual selection/review is required. Full curved-page dewarping, automatic
+  cross-photo note joining, universal short-reference resolution and accepted
+  citation relationships remain limitations. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md)
+  for the workflow and how to use smaller areas for difficult pages.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

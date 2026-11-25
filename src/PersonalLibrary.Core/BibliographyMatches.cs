@@ -11,13 +11,15 @@ public static class BibliographyMatches
         var surname = CitedRecommendations.Surname(citation.Author);
         if (shortTitle.Length < 2 || shortTitle.Length < 6 && surname.Length < 2) return [];
         return library.Where(book => !book.Excluded &&
-            (CitedRecommendations.TextKey(book.Title) == title || CitedRecommendations.TextKey(book.Title.Split(':', 2)[0]) == shortTitle) &&
+            (CitedRecommendations.TextKey(book.Title) == title || CitedRecommendations.TextKey(book.Title.Split(':', 2)[0]) == shortTitle ||
+                shortTitle.Replace(" ", "").Length >= 8 && surname.Length > 1 &&
+                CitedRecommendations.TextKey(book.Title.Split(':', 2)[0]).Replace(" ", "") == shortTitle.Replace(" ", "")) &&
             (surname.Length == 0 || $" {CitedRecommendations.TextKey(book.Author)} ".Contains($" {surname} ", StringComparison.Ordinal))).ToArray();
     }
 
     public static EpubCitation[] ReadText(string text, IReadOnlyList<Book> library)
     {
-        var citations = CitedRecommendations.ReadText(text).ToList();
+        var citations = CitedRecommendations.ReadText(text).Concat(NoteReferences.Read(text)).ToList();
         // OCR loses italics and may wrap a reference over several lines. Match known
         // titles only with author evidence inside the same bounded text block.
         var separated = System.Text.RegularExpressions.Regex.Replace(text.Replace("\r", ""),
@@ -31,6 +33,14 @@ public static class BibliographyMatches
                 var title = CitedRecommendations.TextKey(book.Title.Split(':', 2)[0]);
                 var surname = CitedRecommendations.Surname(book.Author);
                 var position = key.IndexOf($" {title} ", StringComparison.Ordinal);
+                if (position < 0 && title.Replace(" ", "").Length >= 8 && surname.Length >= 2)
+                {
+                    var compact = key.Replace(" ", ""); var compactTitle = title.Replace(" ", "");
+                    var compactPosition = compact.IndexOf(compactTitle, StringComparison.Ordinal);
+                    if (compactPosition >= 0 && compact.Substring(Math.Max(0, compactPosition - 120), Math.Min(compact.Length, compactPosition + compactTitle.Length + 60) - Math.Max(0, compactPosition - 120))
+                        .Contains(surname.Replace(" ", ""), StringComparison.Ordinal) && !citations.Any(citation => Find(citation, [book]).Length > 0))
+                        citations.Add(new(citations.Count + 1, "Possible OCR spacing match", block.Trim(), book.Title, book.Author, "bibliography.md", null));
+                }
                 if (title.Length < 4 || surname.Length < 2 || position < 0 ||
                     !key.Substring(Math.Max(0, position - 160), Math.Min(key.Length, position + title.Length + 80) - Math.Max(0, position - 160))
                         .Contains($" {surname} ", StringComparison.Ordinal) ||
@@ -38,7 +48,7 @@ public static class BibliographyMatches
                 citations.Add(new(citations.Count + 1, "Pasted or scanned text", block.Trim(), book.Title, book.Author, "bibliography.md", null));
             }
         }
-        return citations.ToArray();
+        return citations.Select((citation, index) => citation with { Number = index + 1 }).ToArray();
     }
 
     public static IReadOnlyList<LocalCitedBook> All(IReadOnlyList<Book> library, Func<Guid, IEnumerable<EpubCitation>> read)

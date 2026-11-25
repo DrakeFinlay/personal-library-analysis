@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -82,6 +83,9 @@ internal sealed class BibliographyTextWindow : Window
             };
             if (picker.ShowDialog(this) != true) return;
             var files = picker.FileNames.OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase).ToArray();
+            var selection = new PhotoPagesWindow(files) { Owner = this };
+            if (selection.ShowDialog() != true) return;
+            var pages = selection.Pages;
             scanning = true;
             scanCancellation = new CancellationTokenSource();
             cancelScan.Visibility = Visibility.Visible;
@@ -90,26 +94,40 @@ internal sealed class BibliographyTextWindow : Window
             try
             {
                 staging ??= Directory.CreateTempSubdirectory("personal-library-ocr-");
-                for (var index = 0; index < files.Length; index++)
+                for (var index = 0; index < pages.Length; index++)
                 {
                     scanCancellation.Token.ThrowIfCancellationRequested();
-                    var filename = Path.GetFileName(files[index]);
-                    status.Text = $"Scanning {index + 1} of {files.Length} · {filename}";
+                    var page = pages[index];
+                    var filename = Path.GetFileName(page.Path);
+                    status.Text = $"Straightening / scanning {index + 1} of {pages.Length} · {filename}";
                     try
                     {
                         var folder = staging.CreateSubdirectory(Guid.NewGuid().ToString("N"));
                         var staged = Path.Combine(folder.FullName, filename);
-                        await Task.Run(() => File.Copy(files[index], staged));
-                        var recognized = await BibliographyOcr.ReadAsync(staged, scanCancellation.Token);
+                        var prepared = Path.Combine(folder.FullName, $"area-{page.AreaNumber}.png");
+                        await Task.Run(() =>
+                        {
+                            File.Copy(page.Path, staged);
+                            PhotoPageImage.Prepare(staged, page.Area, page.ImproveContrast, prepared);
+                        });
+                        scanCancellation.Token.ThrowIfCancellationRequested();
+                        var recognizedPage = await BibliographyOcr.ReadAsync(prepared, scanCancellation.Token);
+                        var recognized = OcrParagraphs.Reconstruct(recognizedPage);
                         if (recognized.Length == 0) throw new InvalidOperationException("No text was recognized.");
+                        var evidence = Path.Combine(folder.FullName, $"area-{page.AreaNumber}.ocr.json");
+                        await File.WriteAllTextAsync(evidence, JsonSerializer.Serialize(new PhotoOcrEvidence(filename, page.Area, page.ImproveContrast,
+                            recognizedPage), LibraryStore.Json), scanCancellation.Token);
                         draftImages.Add(staged);
-                        text.AppendText((text.Text.Length > 0 ? "\n\n" : "") + recognized);
+                        draftImages.Add(prepared); draftImages.Add(evidence);
+                        var warnings = OcrParagraphs.ReviewWarnings(recognizedPage);
+                        var warning = warnings.Length == 0 ? "" : "\n\n> Review: " + string.Join(" ", warnings);
+                        text.AppendText((text.Text.Length > 0 ? "\n\n" : "") + $"## Photo: {filename} · area {page.AreaNumber}\n\n" + recognized + warning);
                     }
                     catch (OperationCanceledException) { throw; }
                     catch (Exception ex) { failures.Add($"{filename} · {ex.Message}"); }
                 }
                 status.Text = failures.Count == 0
-                    ? "Review the scanned text and use Review citations / local matches, then save. Pages are scanned in filename order."
+                    ? "Review the reconstructed notes and citations, then use Review citations / local matches and save. Originals, selected areas and raw OCR are retained when saved."
                     : string.Join("\n", failures.Take(3)) + (failures.Count > 3 ? $"\n{failures.Count - 3} more images failed." : "");
                 text.ScrollToEnd();
             }
@@ -145,7 +163,7 @@ internal sealed class BibliographyTextWindow : Window
             text.IsReadOnly = !editing;
             edit.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
             scan.Visibility = save.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-            status.Text = editing ? "Paste text from an EPUB or PDF, or scan photos of bibliography pages." : "";
+            status.Text = editing ? "Paste text or scan bibliography / notes photos. Select each page area before recognition; review the text before saving." : "";
             if (editing) text.Focus();
         }
     }
