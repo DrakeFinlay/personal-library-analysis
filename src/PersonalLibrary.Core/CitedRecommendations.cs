@@ -66,7 +66,7 @@ public static partial class CitedRecommendations
         }
     }
 
-    private static bool IsBookCitation(EpubCitation citation)
+    internal static bool IsBookCitation(EpubCitation citation)
     {
         if (citation.Interpretation is { CanConnect: false }) return false;
         var title = citation.Title.Trim();

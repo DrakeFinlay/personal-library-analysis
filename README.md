@@ -131,6 +131,12 @@ by distinct citing books and evidence passages across your saved bibliography
 set, including cited works outside My Books. Identities are inferred unless reviewed; ambiguous
 matches and separate parts/volumes are not silently merged.
 
+**Discovery** finds works shared by multiple saved bibliographies, including
+titles outside My Books. Choose specific source books to see their intersection,
+inspect why a work appears, and open its graph or find/add it. The former
+**Cited by books you enjoyed** section now lives in Discovery as a second view.
+See the [Discovery guide](.docs/DISCOVERY.md) for ranking, filters and preferences.
+
 Graph nodes use green for **In My Books**, blue for **Not in My Books**, and
 amber for unresolved library matches. Select a connection, then **Review
 attribution / dates…** to distinguish original-text references from later

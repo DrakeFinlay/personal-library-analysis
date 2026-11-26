@@ -133,6 +133,11 @@ evidence; ambiguous records remain possible matches rather than accepted links.
 
 ## Explore citation chains and cross connections
 
+For reading suggestions based on shared references, open **Discovery → Shared
+reading leads**. It can require all of several chosen source books, and links a
+selected lead directly into its graph. **Cited by books you enjoyed** also lives
+in Discovery now. See [Discover reading leads](DISCOVERY.md).
+
 Saved evidence now passes through the [citation interpretation layer](CITATION-PROCESSING.md)
 before creating connections. **Review processed citations…** shows identified
 works and unresolved interpretations. Short references and `Ibid.` need an

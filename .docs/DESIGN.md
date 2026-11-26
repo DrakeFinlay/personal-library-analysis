@@ -49,7 +49,7 @@ Anki writes or integration are included in the initial releases.
 
 ## 3. Screens and everyday use
 
-Primary navigation: **Home, My Books, Recommendations, Bibliographies, Statistics,
+Primary navigation: **Home, My Books, Recommendations, Discovery, Bibliographies, Statistics,
 Goals, Settings**. Later screens may be present only once their functionality is useful.
 
 ### Home
@@ -69,6 +69,24 @@ The sidebar shows **Recently changed books**: the ten most recently saved books
 across reading statuses, excluding out-of-scope records. Reading updates, edits,
 imports, and batch saves count as changes. Cards open the book editor.
 Currently-reading books retain manual order. The Read next interface is retired.
+
+### Discovery
+
+Discovery houses Shared reading leads and the former Cited by books you enjoyed
+recommendation section. Shared leads require at least two distinct saved source
+books; repeated notes in one book do not count as multiple sources. All rated and
+unrated bibliography sources can contribute. Rank by finished four/five-star source
+count, then total citing-source count. Optional source selection requires every
+selected source, not any one of them. Search/filtering precedes a first-50 display
+limit. Library membership, source evidence and attribution stay visible; the graph
+opens focused on the selected shared work. My Books/add-book actions are explicit.
+
+Default next-reading leads omit completed/other-status local targets. A toggle
+includes them for research while preserving dismissals/snoozes/exclusions. Both
+Discovery views support all-reference or reviewed-original-only scope. Unresolved
+interpretations cannot create leads; identities remain reviewable. Reading-list
+recommendations remain under Recommendations. Discovery loads its corpus and
+ranking asynchronously and reads citation preferences in a single namespace query.
 
 ### Goals
 
@@ -574,7 +592,7 @@ excluded books. Currently reading, DNF, partially
 read, and reference-only books are outside these candidate groups. Per-shelf
 recommendations and discovery from the offline reference catalog follow later.
 
-**Cited by books you enjoyed** surfaces up to ten possible book references from
+Under **Discovery**, **Cited by books you enjoyed** surfaces up to ten possible book references from
 completed works rated four or five stars. It groups repeat citations and favors
 references from multiple highly rated sources. Picks link to their evidence
 and can include works outside My Books, which the reader can look up or add.

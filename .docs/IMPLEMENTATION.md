@@ -973,6 +973,44 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - README, design and [bibliography usage](BIBLIOGRAPHIES.md) explain re-analysis
   and extraction limitations. Other unsupported publisher layouts remain possible.
 
+### Citation-based Discovery tab (November 25, 2026)
+
+- Added Discovery to top navigation. Shared reading leads finds work targets
+  listed by at least two distinct saved source books, including unrated sources.
+  Ranking prioritizes the count of finished four/five-star sources, then total
+  citing-source count. Repeated notes from one source cannot manufacture a bridge.
+- Optional source selection requires every selected source. Title/author search
+  and filters apply before a first-50 table limit, with Show all leads available.
+  Default reading leads omit completed/other-status local targets; an exploration
+  toggle includes them while preserving dismissals, snoozes and exclusions.
+- Selected leads show library membership, source evidence/attribution labels,
+  why they appear, My Books/find-add actions and shared recommendation preferences.
+  Explore shared connections opens the graph focused on that work and carries
+  the attribution scope. Original-only scope is available for both Discovery views.
+- Moved Cited by books you enjoyed from Recommendations into Discovery's second
+  view, retaining its existing finished/high-rated-source and preference behavior.
+  Recommendations retains To read and owned-unread sections. Shared-lead ranking
+  and preference snapshots load in the background; filtering uses cached ranked
+  arrays and one citation-settings namespace query. Refresh reloads library state,
+  citations and preferences. No books are added merely by viewing Discovery.
+- All 289 checks passed, including unrated sources, enjoyed-source ranking,
+  distinct counts, all-selected-source intersections, unresolved interpretations,
+  library matches, status/dismissal/snooze/exclusion handling and preference scope.
+  Release build passed without warnings/errors and the local Windows package
+  was rebuilt with both Discovery and the EPUB detection fix.
+- An isolated TEST PROFILE verified navigation, shared leads and membership,
+  selecting two required sources, graph opening at the selected work, the moved
+  enjoyed-books suggestions, and their absence from Recommendations. Read-only
+  evaluation of saved personal evidence found Paul and the Faithfulness of God
+  shared by Dominion and The Case for Jesus, outside My Books, as requested.
+  No personal bibliographies or reading records were rewritten for the evaluation.
+- Added [DISCOVERY.md](DISCOVERY.md) with practical steps, ranking and preferences;
+  updated README, design and bibliography links. Discovery depends on saved,
+  identified evidence and can miss unresolved/OCR/name variants until reviewed.
+  It does not fetch missing bibliographies or treat indirect paths as direct
+  citations. General catalog discovery and broader recommendation modeling remain
+  future work; no large-library performance benchmark is claimed.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

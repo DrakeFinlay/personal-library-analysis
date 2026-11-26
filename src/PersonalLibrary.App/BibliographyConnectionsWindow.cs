@@ -14,7 +14,7 @@ internal sealed class BibliographyConnectionsWindow : Window
         public string Label => $"{Work.Title} · {Work.Author}\n{Incoming} citing books · {Outgoing} references";
     }
 
-    public BibliographyConnectionsWindow(LibraryStore store, Action<Book, EpubCitation?> openSource)
+    public BibliographyConnectionsWindow(LibraryStore store, Action<Book, EpubCitation?> openSource, string? initialFocus = null, bool originalTextOnly = false)
     {
         Title = "Bibliography connections & statistics"; Width = 1480; Height = 900; MinWidth = 1050; MinHeight = 650;
         Style = (Style)Application.Current.FindResource(typeof(Window)); WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -26,7 +26,7 @@ internal sealed class BibliographyConnectionsWindow : Window
         var legend = new WrapPanel(); header.Children.Add(legend);
         foreach (var (label, color) in new[] { ("In My Books", "#DFF1E3"), ("Not in My Books", "#C1DAFF"), ("Library match unresolved", "#FFE8B6") })
             legend.Children.Add(new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)), Padding = new Thickness(9, 4, 9, 4), Margin = new Thickness(0, 0, 10, 8), Child = new TextBlock { Text = label, Foreground = Brushes.Black } });
-        var originalOnly = new CheckBox { Content = "Reviewed original-text citations only (exclude editorial / further reading / chronology warnings)", Margin = new Thickness(0, 0, 0, 8) }; header.Children.Add(originalOnly);
+        var originalOnly = new CheckBox { Content = "Reviewed original-text citations only (exclude editorial / further reading / chronology warnings)", IsChecked = originalTextOnly, Margin = new Thickness(0, 0, 0, 8) }; header.Children.Add(originalOnly);
         var summary = Ui.Text("Loading saved bibliographies…", 13, "MutedBrush"); header.Children.Add(summary);
         var tabs = new TabControl(); root.Children.Add(tabs);
         var graphTab = new TabItem { Header = "Explore connections" }; var statsTab = new TabItem { Header = "Repeatedly cited works" }; tabs.Items.Add(graphTab); tabs.Items.Add(statsTab);
@@ -52,7 +52,7 @@ internal sealed class BibliographyConnectionsWindow : Window
         var graphStatus = Ui.Text("Choose a work to explore its connections.", 12, "MutedBrush"); graphStatus.TextWrapping = TextWrapping.Wrap;
         DockPanel.SetDock(graphStatus, Dock.Bottom); middle.Children.Insert(middle.Children.Count - 1, graphStatus);
         var detail = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; var detailScroll = Ui.Scroll(detail); Grid.SetColumn(detailScroll, 2); graphGrid.Children.Add(detailScroll);
-        BibliographyGraph? graph = null; BibliographyGraph? corpus = null; string? focus = null; string? selected = null; string[] highlightedPath = []; var visible = new HashSet<string>();
+        BibliographyGraph? graph = null; BibliographyGraph? corpus = null; string? focus = initialFocus; string? selected = null; string[] highlightedPath = []; var visible = new HashSet<string>();
         var syncingChoice = false;
         var zoom = new Slider { Minimum = .35, Maximum = 1.8, Value = 1, Width = 90, Margin = new Thickness(8, 0, 0, 5), ToolTip = "Graph zoom" };
         System.Windows.Automation.AutomationProperties.SetName(zoom, "Graph zoom");

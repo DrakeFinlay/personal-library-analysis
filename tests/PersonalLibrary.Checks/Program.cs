@@ -27,6 +27,7 @@ try
     EpubImportChecks.Run(workspace, Check, Reject);
     PhotoOcrChecks.Run(workspace, Check, Reject);
     CitationProcessingChecks.Run(workspace, Check, Reject);
+    CitationDiscoveryChecks.Run(workspace, Check);
     BibliographyGraphChecks.Run(workspace, Check);
     CitationProvenanceChecks.Run(workspace, Check, Reject);
     BrowsingChecks.Run(workspace, Check);

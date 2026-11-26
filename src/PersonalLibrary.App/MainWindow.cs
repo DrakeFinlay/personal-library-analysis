@@ -15,7 +15,7 @@ using PersonalLibrary.Infrastructure;
 
 namespace PersonalLibrary.App;
 
-public sealed class MainWindow : Window
+public sealed partial class MainWindow : Window
 {
     private readonly LibraryStore store;
     private readonly ContentControl page = new();
@@ -50,7 +50,7 @@ public sealed class MainWindow : Window
         var add = Ui.Button("+ Add a book", AddBook, true); DockPanel.SetDock(add, Dock.Right); header.Children.Add(add);
         header.Children.Add(Ui.Heading("personal library", 31)); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 18) };
-        foreach (var name in new[] { "Home", "My Books", "Recommendations", "Bibliographies", "Statistics", "Goals", "Settings" })
+        foreach (var name in new[] { "Home", "My Books", "Recommendations", "Discovery", "Bibliographies", "Statistics", "Goals", "Settings" })
             nav.Children.Add(Ui.Button(name, () => { activePage = name; RefreshPage(); }));
         DockPanel.SetDock(nav, Dock.Top); root.Children.Add(nav);
         message.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
@@ -70,7 +70,7 @@ public sealed class MainWindow : Window
         page.Content = activePage switch
         {
             "My Books" => libraryPage ??= Library(), "Recommendations" => RecommendationsPage(),
-            "Bibliographies" => Bibliographies(), "Statistics" => Statistics(),
+            "Discovery" => Discovery(), "Bibliographies" => Bibliographies(), "Statistics" => Statistics(),
             "Goals" => Goals(), "Settings" => SettingsPage(), _ => Home()
         };
     }
@@ -583,14 +583,13 @@ public sealed class MainWindow : Window
             panel.Children.Add(Ui.Text("Rate a finished book to start getting personalized picks.", 14, "MutedBrush"));
         AddRecommendationSection(panel, "Top picks from To read", picks.ToRead);
         AddRecommendationSection(panel, "Owned and unread", picks.OwnedUnread);
-        AddCitedRecommendationSection(panel, picks);
         var offset = recommendationsScroll?.VerticalOffset ?? 0;
         recommendationsScroll = Ui.Scroll(panel);
         recommendationsScroll.ScrollToVerticalOffset(offset);
         return recommendationsScroll;
     }
 
-    private void AddCitedRecommendationSection(Panel panel, RecommendationOverview overview)
+    private void AddCitedRecommendationSection(Panel panel, RecommendationOverview overview, Func<Guid, IEnumerable<EpubCitation>>? read = null, IReadOnlyDictionary<string, string>? citationPreferences = null)
     {
         var section = new StackPanel { Margin = new Thickness(0, 10, 0, 22) };
         section.Children.Add(Ui.Heading("Cited by books you enjoyed", 22));
@@ -598,17 +597,11 @@ public sealed class MainWindow : Window
         var now = DateTimeOffset.Now;
         var shown = overview.ToRead.Concat(overview.OwnedUnread).Select(pick => pick.Book.Id).ToHashSet();
         var authors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var picks = CitedRecommendations.Rank(books, ReadCitations, now)
+        var picks = CitedRecommendations.Rank(books, read ?? ReadCitations, now)
             .OrderBy(pick => pick.LocalBook is { } book && shown.Contains(book.Id))
             .Where(pick =>
             {
-                var preference = store.Setting(CitationPreferenceKey(pick), "");
-                if (preference.Length == 0)
-                    preference = pick.Sources.Select(source => store.Setting(CitationPreferenceKey(CitedRecommendations.LegacyPreferenceKey(source.Citation)), ""))
-                        .FirstOrDefault(value => value.Length > 0) ?? "";
-                return preference != "dismissed" &&
-                    !(long.TryParse(preference, out var until) && until > now.ToUnixTimeSeconds()) &&
-                    authors.Add(pick.Author);
+                return !CitationHidden(pick, citationPreferences) && authors.Add(pick.Author);
             })
             .Take(Recommendations.PicksPerSection).ToArray();
         if (picks.Length == 0)
