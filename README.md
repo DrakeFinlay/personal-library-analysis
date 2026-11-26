@@ -109,10 +109,12 @@ search, sections, original citation text, and possible matches in My Books.
 Your Markdown notes and online bibliography are preserved separately.
 
 In **Bibliographies**, use **Import bibliography photos…** to scan page images
-offline. Select the page/text corners, preview the straightened area, and scan;
-then review reconstructed paragraphs, chapter notes and possible local matches
+offline. Selecting photos starts automatic orientation detection, page/text-area
+selection, straightening and recognition for the whole batch. **Adjust photo
+areas…** is an optional manual retry. Review reconstructed notes and local matches
 before saving. Several citations within one note and unresolved full notes remain
-reviewable. Original photos, selected areas and raw OCR evidence are retained.
+reviewable. Original photos, detected areas, rotation/layout and raw OCR evidence
+are retained.
 **Cited books in My Books** combines matching library titles from all saved
 bibliographies and shows which sources cite them. See the
 [bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and extraction limitations.

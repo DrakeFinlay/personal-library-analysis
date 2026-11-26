@@ -9,7 +9,7 @@ using PersonalLibrary.Core;
 
 namespace PersonalLibrary.App;
 
-internal sealed record SelectedPhotoPage(string Path, PhotoArea Area, bool ImproveContrast, int AreaNumber);
+internal sealed record SelectedPhotoPage(string Path, PhotoArea Area, bool ImproveContrast, int AreaNumber, int QuarterTurns = 0);
 
 internal sealed class PhotoPagesWindow : Window
 {

@@ -868,6 +868,42 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   auditing, external bibliography discovery, and accepted identity reconciliation
   remain future work.
 
+### Automatic bibliography photo batches (November 25, 2026)
+
+- Selecting photos now starts the whole batch immediately, without per-photo
+  corner selection or Accept page steps. Preview OCR compares four reading
+  orientations after EXIF correction. Line-envelope grouping detects substantial
+  text columns/pages, excludes narrow facing-page fragments, estimates drifting
+  text boundaries with margin, and scans each straightened area at full resolution.
+  Two substantial pages scan separately in left-to-right order; uncertain layouts
+  fall back to whole-photo recognition with a notice rather than stopping the batch.
+- The optional Adjust photo areas action retains the manual four-corner workflow
+  for retries. Both paths remain cancellable, append successes to the draft,
+  preserve failures by filename/area in the status, and require one final save.
+  The automatic path retains source filename/hash, selected rotation, detected
+  areas and preview geometry alongside original images, prepared areas, final raw
+  OCR words, and warnings. Existing saved evidence remains readable.
+- All 259 executable checks passed, including page/fragment separation, two-page
+  ordering, perspective drift/margins, uncertain-layout fallback, and new evidence
+  field round trips. Release build passed without warnings/errors. Read-only
+  sample evaluation covered IMG_2792, IMG_2793, IMG_2794, IMG_2815 and IMG_2829 in
+  the supplied photo folder. All produced a main text area automatically, with
+  facing-page scraps excluded where detected. A sideways copy of IMG_2792 was
+  recovered with the opposite quarter-turn. Diagnostic images/text stayed in
+  ignored .local/. This is a sample evaluation, not a transcription accuracy score.
+- An isolated TEST PROFILE verified selecting two photos → automatic batch OCR →
+  combined draft → Save bibliography, without a range-selection screen. Original,
+  area, layout JSON and OCR JSON evidence were retained in that test profile.
+  README, design and bibliography usage guide now describe the automatic default
+  and optional correction workflow.
+  The local Windows package was successfully rebuilt after the running app was
+  closed to release its locked files.
+- Detection remains heuristic and recognition uses installed Windows OCR
+  languages. Blur, severe curvature, sparse or unusual layouts can need optional
+  manual correction. Hidden text cannot be restored. Automatic orientation adds
+  processing time per photo; no downloaded model, cloud service or new dependency
+  was introduced. Existing saved personal bibliographies were not reprocessed.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

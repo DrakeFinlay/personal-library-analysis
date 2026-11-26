@@ -46,20 +46,14 @@ documents are reported as unreadable; check that count before saving.
 3. Select one or more page images. Files scan in filename order: names such as
    `page-01.jpg`, `page-02.jpg` keep pages in order. PNG and JPEG are supported;
    other listed formats depend on the image codecs installed in Windows.
-4. In **Select the text to scan**, drag the four blue corners around the target
-   page or text block. Leave a little margin around all lines, especially hanging
-   indents. Exclude facing-page fragments, fingers, and text on pages underneath.
-   **Left page**, **Right page**, and **Whole photo** provide starting selections;
-   adjust their corners to fit your photo. Selections are manual, not automatic
-   page detection.
-5. Use **Preview straightened page** to check that every line is included.
-   **Reduce shadows** is on initially; turn it off if the preview makes fine
-   type worse. Choose **Accept page & next** for each photo, or **Skip photo**.
-   For a two-page spread or strongly curved page, **Add another area** accepts
-   this selection and lets you select a second page/smaller block in the same
-   photo. Areas scan in the order shown in the list. Every area must be accepted
-   or skipped before **Scan selected pages** becomes available.
-6. Wait for offline Windows OCR, then correct the text in the editor. **Cancel
+4. Scanning starts automatically. The app checks reading orientation, detects
+   substantial text columns/pages, straightens each area and reduces shadows.
+   Two detected pages scan separately from left to right. You do not need to drag
+   corners, accept each photo, or choose ranges before the batch runs.
+5. When boundaries are uncertain, the whole photo is scanned instead. Narrow
+   facing-page fragments are excluded when a substantially wider page is found;
+   the original stays available. Layout notices appear with the page's text.
+6. Wait for offline Windows OCR, then check the combined text in the editor. **Cancel
    scan** stops the remaining pages and keeps successful pages in the draft.
    If a page fails, its filename and error are shown; successful pages remain.
 7. Choose **Review citations / local matches** to inspect possible references
@@ -68,7 +62,8 @@ documents are reported as unreadable; check that count before saving.
    articles, and unrecognized references. Close the review to correct the draft.
 8. Choose **Save bibliography**. The saved text appears under the source book in
    Bibliographies. The profile retains the original photos, selected/straightened
-   PNG areas, crop coordinates, raw OCR words and positions, and text revisions.
+   PNG areas, crop coordinates, automatic rotation/layout evidence, raw OCR words
+   and positions, and text revisions.
    These are included in profile backups and bibliography Change history records
    the retained evidence. None of these files is sent online.
 
@@ -77,13 +72,29 @@ online bibliography. Saving requires your action. Closing an unsaved draft asks
 whether to discard it. You can also open an existing text bibliography, choose
 **Edit bibliography**, and use **Scan images…** to append pages.
 
-OCR uses an installed Windows OCR language. The selected area is orientation
-corrected, projected to a rectangle, and optionally normalized for uneven light.
+**Adjust photo areas…** is an optional manual retry for a photo whose automatic
+result is wrong. Select the problem photos, drag the four blue corners around a
+page/text block, and use **Preview straightened page**. Leave margin around every
+line. **Left page**, **Right page**, and **Whole photo** provide starting points;
+**Reduce shadows** can be disabled. Use **Accept page & next** or **Skip photo**;
+**Add another area** adds a second page or smaller block. Only this manual retry
+requires accepting/skipping each selected area. Its result appends to the draft;
+remove the unwanted earlier text section if replacing a bad scan.
+
+OCR uses an installed Windows OCR language. Automatic detection respects EXIF and
+compares four reading orientations using preview OCR. It groups line geometry
+into text columns, follows drifting text boundaries, and adds margin around them.
+The selected area is projected to a rectangle and normalized for uneven light.
 Tall areas are also recognized in overlapping bands to reduce the effect of
 curved baselines. The editor reconstructs wrapped paragraphs/numbered notes and
 joins hyphenated line continuations; it keeps a photo/area heading for provenance.
 Possible gaps in recognized note numbers and heavily slanted text are flagged
 for review, without inventing missing content. Gaps can also exist in the source.
+Automatic detection is heuristic: blur, severe page curvature, sparse text, or
+unusual layouts can still need correction. It does not restore hidden/cut-off
+text or guarantee publication details. Orientation detection adds processing time
+per photo while removing the required per-photo selection work. No cloud OCR,
+new downloaded model, or paid service is required.
 
 Bibliography/note combinations are supported: full publication references can
 be extracted from a note with several citations, while the full note remains

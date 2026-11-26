@@ -500,11 +500,17 @@ The EPUB reader extracts dedicated bibliography sections and preserves original
 citation text, grouping, and source location in a separate local record. A searchable
 browser offers possible matches by title and author. It was evaluated against the
 complete Dominion bibliography. Photo OCR uses the installed Windows recognizer
-offline after manual four-corner page/text selection, perspective correction,
-and optional illumination normalization. Tall areas use overlapping recognition
+offline with automatic orientation comparison and text-column/page detection.
+Choosing a photo batch starts scanning without per-photo approval. Substantial
+pages are straightened separately, narrow facing-page fragments are excluded,
+and uncertain boundaries fall back to whole-photo recognition with a notice.
+Optional Adjust photo areas retains manual four-corner selection and illumination
+controls for retries. Automatic areas use perspective correction and illumination
+normalization. Tall areas use overlapping recognition
 bands. Reconstruct paragraphs and numbered notes, preserving complete mixed notes
 alongside candidate publication references and possible library matches. Retain
-the original photo, prepared area, crop coordinates and raw OCR geometry on save.
+the original photo, prepared area, crop coordinates, rotation/layout evidence and
+raw OCR geometry on save. All detection/recognition stays offline and cancellable.
 Warn about possible missing note numbers; never fill in missing evidence.
 Text-PDF extraction, scanned-PDF OCR, manual EPUB section selection, and
 accepted citation edges remain later work.

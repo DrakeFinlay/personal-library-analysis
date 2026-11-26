@@ -6,7 +6,8 @@ namespace PersonalLibrary.Core;
 public sealed record OcrWord(string Text, double X, double Y, double Width, double Height);
 public sealed record OcrLine(string Text, OcrWord[] Words);
 public sealed record OcrPage(int Width, int Height, double? Angle, string Language, OcrLine[] Lines, OcrLine[]? WholePageLines = null);
-public sealed record PhotoOcrEvidence(string Source, PhotoArea Area, bool ImproveContrast, OcrPage Recognition);
+public sealed record PhotoOcrEvidence(string Source, PhotoArea Area, bool ImproveContrast, OcrPage Recognition,
+    int QuarterTurns = 0, string[]? LayoutWarnings = null, string SourceSha256 = "");
 
 public static class OcrParagraphs
 {

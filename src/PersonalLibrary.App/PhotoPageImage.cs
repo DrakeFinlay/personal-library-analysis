@@ -35,9 +35,16 @@ internal static class PhotoPageImage
         return new(gray.PixelWidth, gray.PixelHeight, pixels);
     }
 
-    public static void Prepare(string path, PhotoArea area, bool contrast, string target)
+    public static void Prepare(string path, PhotoArea area, bool contrast, string target, int quarterTurns = 0, int maxDimension = 4000)
     {
-        var result = PhotoPage.Rectify(Gray(Load(path)), area, contrast);
+        BitmapSource source = Load(path);
+        if (quarterTurns != 0) source = new TransformedBitmap(source, new RotateTransform(quarterTurns * 90));
+        if (maxDimension < 4000 && Math.Max(source.PixelWidth, source.PixelHeight) > maxDimension)
+        {
+            var scale = maxDimension / (double)Math.Max(source.PixelWidth, source.PixelHeight);
+            source = new TransformedBitmap(source, new ScaleTransform(scale, scale));
+        }
+        var result = PhotoPage.Rectify(Gray(source), area, contrast);
         var bitmap = BitmapSource.Create(result.Width, result.Height, 96, 96, PixelFormats.Gray8, null, result.Pixels, result.Width);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var output = File.Create(target); encoder.Save(output);

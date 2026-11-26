@@ -20,6 +20,23 @@ internal static class PhotoOcrChecks
         var normalized = PhotoPage.Rectify(shadow, PhotoArea.Whole);
         check(normalized.Pixels[0] > 230 && normalized.Pixels.Min() < 80 && shadow.Pixels[0] == 130,
             "Shadow reduction brightens paper, retains dark type, and preserves original pixels");
+        OcrLine TextRow(int left, int top, int width = 360) => new("Writer lists a fictional publication", Enumerable.Range(0, 6)
+            .Select(i => new OcrWord("fictional", left + i * width / 6d, top, width / 6d - 5, 15)).ToArray());
+        var layoutRows = Enumerable.Range(0, 12).Select(i => TextRow(350 + i, 100 + i * 35)).ToArray();
+        var auto = PhotoTextDetection.Detect(new(1000, 800, 0, "en-US", layoutRows.Concat(Enumerable.Range(0, 8).Select(i => TextRow(820, 120 + i * 35, 150))).ToArray()));
+        check(auto.Areas.Length == 1 && auto.Areas[0].TopLeft.X > .3 && auto.Areas[0].TopRight.X < .8 && auto.Warnings.Length > 0,
+            "Automatic page detection isolates a broad text page from an adjacent narrow facing-page fragment");
+        var spread = PhotoTextDetection.Detect(new(1000, 800, 0, "en-US", Enumerable.Range(0, 12)
+            .SelectMany(i => new[] { TextRow(60, 100 + i * 35), TextRow(560, 100 + i * 35) }).ToArray()));
+        check(spread.Areas.Length == 2 && spread.Areas[0].TopRight.X < spread.Areas[1].TopLeft.X,
+            "Automatic detection scans two substantial facing pages separately in left-to-right order");
+        var slanted = auto.Areas.Single(); slanted.Validate();
+        check(slanted.TopLeft.X < slanted.BottomLeft.X && slanted.TopRight.X < slanted.BottomRight.X &&
+            slanted.TopLeft.Y < .125 && slanted.BottomLeft.Y > (100 + 11 * 35 + 15) / 800d,
+            "Detected page boundaries follow perspective drift and retain margin above and below recognized text");
+        check(PhotoTextDetection.Detect(new(1000, 800, null, "en-US", [])).Areas.Single() == PhotoArea.Whole &&
+            PhotoTextDetection.Detect(new(1000, 800, null, "en-US", [])).Warnings.Length > 0,
+            "Uncertain detection falls back to automatic whole-photo OCR instead of requiring manual approval or discarding the image");
         OcrLine Line(string value, int y, int x = 10) => new(value, [new(value, x, y, 500, 20)]);
         var reconstructed = OcrParagraphs.Reconstruct(new(1000, 1000, 0, "en-US", [Line("242", 0, 900), Line("Chapter 1: A fictional chapter", 20),
             Line("1 See A. Writer, A Controver-", 60), Line("sial Coast (Town: Press, 2020).", 85), Line("2 A. Reader, Another Book.", 125)]));
@@ -53,11 +70,12 @@ internal static class PhotoOcrChecks
         using var store = new LibraryStore(Path.Combine(workspace, "photo-evidence")); store.Save(known);
         var image = Path.Combine(workspace, "original-photo.jpg"); var processed = Path.Combine(workspace, "selected-area.png"); var evidence = Path.Combine(workspace, "selected-area.ocr.json");
         File.WriteAllBytes(image, [1, 2, 3]); File.WriteAllBytes(processed, [4, 5, 6]);
-        var raw = new PhotoOcrEvidence("original-photo.jpg", crop, true, new(1000, 1000, 0, "en-US", [Line("A synthetic citation", 20)]));
+        var raw = new PhotoOcrEvidence("original-photo.jpg", crop, true, new(1000, 1000, 0, "en-US", [Line("A synthetic citation", 20)]), 1, ["Synthetic layout notice"], "synthetic-source-hash");
         var serialized = System.Text.Json.JsonSerializer.Serialize(raw, LibraryStore.Json);
         var recovered = System.Text.Json.JsonSerializer.Deserialize<PhotoOcrEvidence>(serialized, LibraryStore.Json)!;
-        check(recovered.Source == raw.Source && recovered.Area == crop && recovered.Recognition.Lines.Single().Text == "A synthetic citation",
-            "Production JSON settings retain crop coordinates, source filename and raw OCR words");
+        check(recovered.Source == raw.Source && recovered.Area == crop && recovered.Recognition.Lines.Single().Text == "A synthetic citation" &&
+            recovered.QuarterTurns == 1 && recovered.LayoutWarnings?.Single() == "Synthetic layout notice" && recovered.SourceSha256 == raw.SourceSha256,
+            "Production JSON settings retain crop coordinates, source filename, automatic rotation/layout notices and raw OCR words");
         File.WriteAllText(evidence, serialized);
         var saved = store.SaveBibliography(known.Id, notes, null, [image, processed, evidence]);
         store.SaveBibliography(known.Id, saved.Text, saved.Hash, [image, processed, evidence]);

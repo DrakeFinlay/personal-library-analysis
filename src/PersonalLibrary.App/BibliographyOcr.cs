@@ -8,7 +8,7 @@ namespace PersonalLibrary.App;
 
 internal static class BibliographyOcr
 {
-    public static async Task<OcrPage> ReadAsync(string path, CancellationToken cancellationToken = default)
+    public static async Task<OcrPage> ReadAsync(string path, CancellationToken cancellationToken = default, bool wholePageOnly = false)
     {
         using var script = new StreamReader(typeof(BibliographyOcr).Assembly
             .GetManifestResourceStream("PersonalLibrary.BibliographyOcr.ps1")!);
@@ -26,6 +26,7 @@ internal static class BibliographyOcr
         foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", command })
             start.ArgumentList.Add(argument);
         start.Environment["PERSONAL_LIBRARY_OCR_IMAGE"] = path;
+        start.Environment["PERSONAL_LIBRARY_OCR_WHOLE_ONLY"] = wholePageOnly ? "1" : "0";
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Windows OCR could not start.");
         var output = process.StandardOutput.ReadToEndAsync();
         var errors = process.StandardError.ReadToEndAsync();
