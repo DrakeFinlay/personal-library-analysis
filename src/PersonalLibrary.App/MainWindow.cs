@@ -259,8 +259,12 @@ public sealed class MainWindow : Window
         heading.Children.Add(Ui.Heading("My Books"));
         top.Children.Add(heading);
         var findPanel = new StackPanel();
-        var search = Ui.Input(findPanel, "Find title, author, or ISBN within these filters");
-        top.Children.Add(new Expander { Header = "Find a specific book", Content = findPanel, Margin = new Thickness(0, 0, 0, 8) });
+        var search = Ui.Input(findPanel, "Search saved books by title, author, or ISBN");
+        var searchScope = new ComboBox { ItemsSource = new[] { "Entire library", "Current filters" }, SelectedIndex = 0, Width = 190, HorizontalAlignment = HorizontalAlignment.Left };
+        AutomationProperties.SetName(searchScope, "Library search scope"); findPanel.Children.Add(searchScope);
+        var searchScopeNote = Ui.Text("Search covers the entire saved library, including books beyond the first 50 results.", 12, "MutedBrush");
+        searchScopeNote.TextWrapping = TextWrapping.Wrap; findPanel.Children.Add(searchScopeNote);
+        top.Children.Add(findPanel);
         var statusFilters = new StackPanel { Width = 170, Margin = new Thickness(0, 0, 18, 0) };
         statusFilters.Children.Add(Ui.Text("READING STATUS", 12, "MutedBrush"));
         ReadingStatus? statusFilter = ReadingStatus.ToRead;
@@ -506,7 +510,10 @@ public sealed class MainWindow : Window
                 shelf.SelectedIndex > 0 ? shelf.SelectedItem as string : null,
                 groups.SelectedIndex > 0 ? groups.SelectedItem as string : null,
                 search.Text, false, sortDescending, excluded.IsChecked == true,
-                missingCover.IsChecked == true, showAll ? null : 50, sortMode));
+                missingCover.IsChecked == true, showAll ? null : 50, sortMode, searchScope.SelectedIndex == 0));
+            searchScopeNote.Text = !string.IsNullOrWhiteSpace(search.Text) && searchScope.SelectedIndex == 0
+                ? "Searching the entire library: status, shelf, group and missing-cover filters are bypassed. Show excluded records still applies."
+                : "Search covers all saved matches before the 50-result limit. Choose Entire library or Current filters.";
             matches = pageResult.Books;
             resultSummary.Text = $"{matches.Count} of {pageResult.Total} matching books  ·  ";
             showAllButton.Content = showAll ? "Show first 50" : "Show all books";
@@ -538,6 +545,7 @@ public sealed class MainWindow : Window
         var searchDelay = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         searchDelay.Tick += (_, _) => { searchDelay.Stop(); showAll = false; Populate(); };
         search.TextChanged += (_, _) => { searchDelay.Stop(); searchDelay.Start(); };
+        searchScope.SelectionChanged += (_, _) => Populate();
         shelf.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
         groups.SelectionChanged += (_, _) => { if (!restoringShelf) { showAll = false; Populate(); } };
         sortField.SelectionChanged += (_, _) => { if (!updatingSort) { sortMode = (LibrarySort)sortField.SelectedIndex; Populate(); } };

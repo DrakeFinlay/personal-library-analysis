@@ -92,8 +92,11 @@ Reading statuses appear on the far left, with separate shelf and to-read group
 filters above the results. All is available for each filter. The table loads the
 first 50 matching records; Show all books deliberately expands the filtered range.
 Queries apply filters and sorting to the full library before limiting records.
-The table virtualizes rows and loads no cover images. Optional title/author/ISBN
-search lives under Find a specific book. Clicking a cover in bulk edit toggles its selection.
+The table virtualizes rows and loads no cover images. A visible title/author/ISBN
+search defaults to Entire library. A nonempty global query bypasses status,
+shelf, group, and missing-cover filters while retaining the excluded-records
+choice and result limit. Current filters searches within the chosen range;
+clearing the query resumes filtered browsing. Clicking a cover in bulk edit toggles its selection.
 My Books keeps the current search, filters, selections, and scroll position when
 the book editor closes. Refresh library reloads the saved records in that view.
 The table defaults to numeric To-read position ascending, with a reversible

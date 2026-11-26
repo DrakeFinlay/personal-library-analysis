@@ -5,7 +5,8 @@ namespace PersonalLibrary.Infrastructure;
 
 public sealed record LibraryQuery(ReadingStatus? Status = ReadingStatus.ToRead, string? Shelf = null,
     string? Group = null, string Search = "", bool ByAuthor = false, bool Descending = false,
-    bool ShowExcluded = false, bool MissingCover = false, int? Limit = 50, LibrarySort Sort = LibrarySort.ToReadPosition);
+    bool ShowExcluded = false, bool MissingCover = false, int? Limit = 50, LibrarySort Sort = LibrarySort.ToReadPosition,
+    bool SearchEntireLibrary = false);
 public sealed record LibraryResults(List<Book> Books, int Total);
 
 public sealed partial class LibraryStore
@@ -42,6 +43,8 @@ public sealed partial class LibraryStore
 
     public LibraryResults Browse(LibraryQuery query)
     {
+        if (query.SearchEntireLibrary && !string.IsNullOrWhiteSpace(query.Search))
+            query = query with { Status = null, Shelf = null, Group = null, MissingCover = false };
         lock (gate)
         {
             using var connection = Open();

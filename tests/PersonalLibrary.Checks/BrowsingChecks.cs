@@ -25,6 +25,10 @@ internal static class BrowsingChecks
         check(filtered.Books.Count > 50 && filtered.Books.All(book => book.Shelves.Contains("history") && book.ToReadGroups.Count == 2 && book.Status == ReadingStatus.ToRead),
             "Shelf and overlapping user groups intersect the chosen status and Show all expands only matching books");
         var beyond = store.Browse(new(Status: null, Search: "ÉMILE"));
+        var global = store.Browse(new(Status: ReadingStatus.Read, Shelf: "absent", Group: "absent", Search: "ÉMILE", MissingCover: true, SearchEntireLibrary: true));
+        check(global.Books.Single().Id == books[1800].Id && store.Browse(new(Status: ReadingStatus.Read, Search: "ÉMILE")).Total == 0 &&
+            store.Browse(new(SearchEntireLibrary: true)).Total == first.Total,
+            "Whole-library search bypasses browsing filters, reaches unloaded books, and preserves the To-read default when the search is empty");
         check(beyond.Books.Single().Id == books[1800].Id && store.Browse(new(Status: null, Search: "' OR 1=1 --")).Total == 0,
             "Search reaches books outside the first page, supports case-insensitive Unicode, and treats SQL-like input as text");
         var all = store.Browse(new(Status: null, Limit: null));

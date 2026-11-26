@@ -825,6 +825,19 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   The regular Windows launcher was published with these corrections.
   Existing identity and evidence limitations continue to apply.
 
+### Whole-library search restored (November 25, 2026)
+
+- My Books has an always-visible title/author/ISBN search with Entire library as
+  its default scope. Nonempty global searches bypass status, shelf, group, and
+  missing-cover filters; excluded records still follow their explicit checkbox.
+  Current filters retains the selected range. Blank search resumes normal
+  filtering. Queries search before the first-50 limit and never require Show all.
+- Synthetic coverage checks a match outside the selected status/shelf/group and
+  beyond the initial 50. An isolated TEST PROFILE UI check found title 1800 in a
+  2,000-book fixture through its author while To read remained selected; Current
+  filters correctly returned no match. The complete 255-check suite and Release
+  build passed. See [library browsing](LIBRARY-BROWSING.md) for usage.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

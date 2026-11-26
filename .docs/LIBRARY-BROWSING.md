@@ -26,9 +26,16 @@ Choose **Show all books** to load every book matching the current filters;
 search returns to the first 50. Select All statuses and All shelves/groups before
 Show all books if you want the whole library.
 
-**Find a specific book** expands an optional title, author, or ISBN field. It
-searches the full selected range, including books beyond the first 50. Use the
-shelf and group menus for subject/project filtering. Sorting is available through
+The search field is always visible above the filters. Enter a title, author, or
+ISBN. **Entire library**, the default search scope, searches all saved books
+before the 50-result limit, even if To read or a particular shelf/group is
+selected. While text is entered, status, shelf, group, and missing-cover filters
+are bypassed; **Show excluded records** still controls excluded books. Choose
+**Current filters** to search only the selected status/shelf/group range instead.
+Clear the search to return to browsing with the selected filters. Search does not
+require loading all books first. **Show all books** expands the matching results.
+
+Use the shelf and group menus for subject/project filtering. Sorting is available through
 the Position/Date added/Title/Author headers or the sort controls. Drag column edges to resize them;
 hover a truncated value to see the full title, shelf list, or group list.
 

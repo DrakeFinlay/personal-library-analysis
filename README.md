@@ -44,6 +44,11 @@ The table shows **Date added** as well. Both fields can be edited in Book & edit
 **Covers** remains optional. See [library browsing and groups](.docs/LIBRARY-BROWSING.md)
 for selection, sorting, and group-assignment steps.
 
+The visible title/author/ISBN search defaults to **Entire library**, including
+books outside the selected status and beyond the first 50. Choose **Current
+filters** to narrow search to your selected status, shelf, and group instead.
+Clear the search to return to normal filtered browsing.
+
 For older Goodreads imports, **Settings → Recover saved Goodreads order and
 dates…** previews missing values retained in the saved export fields and fills
 them after creating a verified backup.
