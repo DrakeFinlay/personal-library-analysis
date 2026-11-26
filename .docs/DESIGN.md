@@ -439,6 +439,27 @@ Removing a Personal Library record suppresses its source ID during later refresh
 
 ## 8. Bibliography documents and citation relationships
 
+Graph nodes use green for In My Books, blue for absent works, and amber for
+ambiguous library matches, with a legend and text badges. Each arrow runs from
+source bibliography to listed work, with incoming/outgoing details stating this.
+Library membership and original-author attribution are independent.
+
+Each evidence passage can be reviewed as original text, editorial/introduction/
+translator material, further reading, or unreviewed, with an optional responsible
+contributor. Source original year, source edition year, cited original year, and
+cited edition/reference year stay separate. Chronology compares original works
+for original-text evidence and the supplied source edition for editorial material.
+A later printed year with an unknown cited original triggers a qualified warning,
+not automatic deletion. Unknown dates remain unknown. Section inference does not
+count as manual review. All-reference scope preserves evidence; original-text-only
+scope requires manual original-text review without a known date warning and
+applies to graph and statistics alike.
+
+Reviews are separate metadata bound to evidence and source revision hashes.
+Saving updates book timestamps/history; backups include metadata. Replaced sources
+do not inherit old reviews just because wording matches. Existing personal
+references are not automatically rewritten or approved. Identities remain inferred.
+
 Each bibliography belongs to a source work and optionally its particular edition.
 Keep three layers: original supplied evidence, editable Markdown, and structured
 references/matches. Plain-text paste has no external source file; retain its

@@ -838,6 +838,36 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   filters correctly returned no match. The complete 255-check suite and Release
   build passed. See [library browsing](LIBRARY-BROWSING.md) for usage.
 
+### Citation attribution, dates, and graph membership (November 25, 2026)
+
+- Graph labels state source bibliography → listed work and separate incoming and
+  outgoing links. Green/blue/amber node colors and badges distinguish library
+  membership and unresolved matches independently of ownership.
+- Added per-evidence attribution review from graph evidence and saved structured
+  readers: original text, editorial/introduction/translator material, further
+  reading, or unreviewed; optional contributor, source edition year, cited original
+  year, and cited edition year. Chronology warnings qualify unknown originals and
+  later printed years rather than deleting references. Section inference remains
+  a suggestion. The original-text-only scope requires a manual original-text
+  review and no detected date warning, applying to graph and statistics.
+- Separate revision-bound metadata uses optimistic stale-review checks, atomic
+  replacement with audit rollback, book timestamps/history, and profile backup
+  coverage. Changed sources do not inherit old reviews. No personal bibliography
+  was rewritten. Evidence deduplication preserves distinct attribution contexts
+  while counting a citing source once. See the
+  [bibliography guide](BIBLIOGRAPHIES.md#review-attribution-and-publication-dates).
+- All 255 checks passed, covering chronology, editorial context, persistence and
+  history, stale reviews/source revisions, backup/restore, scope filtering, and
+  evidence deduplication. Release build passed without warnings/errors and the
+  local Windows package was rebuilt. An isolated TEST PROFILE UI verified blue
+  external/green library nodes, explicit direction, a 1999-vs-1790 warning, saving
+  a 2005 editorial review, and clearing the original-only graph. A contradictory
+  unreviewed label found during verification was fixed before the final build.
+- Attribution remains manual and identities remain inferred. No conflict with
+  known dates does not establish correctness when dates are absent. Automatic
+  auditing, external bibliography discovery, and accepted identity reconciliation
+  remain future work.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

@@ -56,7 +56,7 @@ internal sealed class EpubBibliographyWindow : Window
         }));
         if (draftPreview) actions.Visibility = Visibility.Collapsed;
         var library = store.Books().Where(candidate => candidate.Id != book.Id).ToArray();
-        var rows = bibliography.Entries.Select(citation => new Row(citation, BibliographyMatches.Find(citation, library))).ToArray();
+        var rows = store.ReviewedCitations(book.Id, bibliography.Entries).Select(citation => new Row(citation, BibliographyMatches.Find(citation, library))).ToArray();
         var sourceLabel = onlineSource == null ? bibliography.SourceFile
             : string.Join(" · ", new[] { onlineSource.Provider, onlineSource.Title, onlineSource.Date }.Where(value => value.Length > 0));
         header.Children.Add(Ui.Text($"{rows.Length} citations · {rows.Count(row => row.Matches.Length > 0)} with possible local matches · {sourceLabel}", 14, "MutedBrush"));
@@ -100,6 +100,17 @@ internal sealed class EpubBibliographyWindow : Window
             var citationText = Ui.Text(citation.Text, 16);
             citationText.TextWrapping = TextWrapping.Wrap;
             details.Children.Add(citationText);
+            var assessment = CitationProvenance.Assess(book, citation, row.Matches.Length == 1 ? row.Matches[0] : null);
+            var provenance = Ui.Text(CitationProvenance.Label(assessment.Attribution) + (assessment.Warning.Length > 0 ? "\n" + assessment.Warning : ""), 13, "MutedBrush"); provenance.TextWrapping = TextWrapping.Wrap; details.Children.Add(provenance);
+            if (!draftPreview) details.Children.Add(Ui.Button("Review attribution / dates…", () =>
+            {
+                if (new CitationReviewWindow(store, book, citation) { Owner = this }.ShowDialog() == true)
+                {
+                    var index = Array.IndexOf(rows, row);
+                    rows[index] = row with { Citation = store.ReviewedCitations(book.Id, [citation])[0] };
+                    Populate(); list.SelectedItem = rows[index];
+                }
+            }));
             details.Children.Add(Ui.Text(citation.ArchiveEntry + (citation.Anchor == null ? "" : "#" + citation.Anchor), 12, "MutedBrush"));
             details.Children.Add(Ui.Button("Find this citation online…", () =>
                 new MetadataLookupWindow(citation.Title, citation.Author) { Owner = this }.ShowDialog()));
@@ -124,7 +135,7 @@ internal sealed class EpubBibliographyWindow : Window
         matchesOnly.Click += (_, _) => Populate();
         Content = root;
         Populate();
-        if (selectedCitation != null && rows.FirstOrDefault(row => row.Citation == selectedCitation) is { } selected)
+        if (selectedCitation != null && rows.FirstOrDefault(row => CitationProvenance.Fingerprint(row.Citation) == CitationProvenance.Fingerprint(selectedCitation)) is { } selected)
         {
             list.SelectedItem = selected;
             list.ScrollIntoView(selected);

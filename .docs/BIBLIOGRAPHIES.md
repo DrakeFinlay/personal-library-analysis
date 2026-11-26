@@ -120,7 +120,10 @@ the source books that connect to them. Unrelated single-source leaf citations
 are hidden. A source cited only once can still appear as a bridge in a deeper
 chain. Nothing is changed by opening or exploring the graph.
 
-An arrow means **citing book → cited work**. For example, if a later source cites
+An arrow means **source bibliography → listed work**. Incoming/outgoing details
+spell out this direction. The original author may not have supplied the reference:
+an edition can contain later introductions, editorial notes, or further reading.
+For example, if a later source cites
 a history book and that history book cites a poem, the two arrows form a chain.
 Other sources citing the same poem form additional branches. A chain does not
 mean that its first source directly cites every work farther along it.
@@ -148,8 +151,12 @@ mean that its first source directly cites every work farther along it.
    bibliography** opens the original reader. **Select citing work** and **Select
    cited work** let you continue exploring either end of that connection.
 
-Light green nodes are in My Books. Gray nodes are external works or ambiguous
-library matches. Identities are inferred from citation titles and author evidence;
+Light green nodes are **In My Books**, blue nodes are **Not in My Books**, and
+amber nodes have a **Library match unresolved**. Each node also has a text label.
+Colors describe library membership independently of physical ownership. External
+works remain in chains when saved evidence supplies the connections; the app
+does not automatically discover missing bibliographies.
+Identities are inferred from citation titles and author evidence;
 these are not accepted citation relationships. Ambiguous matches remain separate
 instead of connecting arbitrarily to several library records. Matching can miss
 OCR errors, translated titles, shortened names and variant titles. External
@@ -167,8 +174,50 @@ A focused view shows up to 120 works, and expansion up to 160. Hidden-neighbor
 messages explain when a limit is reached; focus a narrower branch to continue.
 All retained shared-network cross connections between visible nodes are drawn.
 Shortest paths use the entire shared network. Statistics still use all saved
-citations, independently of the graph filter and display limits. Close and reopen the
+citations in the chosen attribution scope, independently of graph display limits. Close and reopen the
 window after changing bibliography data to load a fresh snapshot.
+
+## Review attribution and publication dates
+
+Select an arrow or an incoming/outgoing connection in **Connections & citation
+stats**, then choose **Review attribution / dates…** beside its evidence. Saved
+EPUB/online citation readers also offer this button for a selected reference.
+
+1. Inspect the reference and source section. Choose **Original-text citation**,
+   **Editorial / introduction / translator material**, **Suggested / further
+   reading**, or leave **Attribution unreviewed** when uncertain.
+2. Optionally name the responsible contributor. Supply the **source edition year**
+   for editorial/further-reading material if known. The source work's original
+   year stays separate and is edited in the source book's normal editor.
+3. Enter the cited work's **original publication year** separately from the
+   **cited edition / reference year**. A blank original year uses a unique My Books
+   match when known. A blank reference year uses a single year in the citation;
+   multiple printed years remain unknown. Check these suggestions against the
+   evidence; a printed year can describe a reprint rather than a new work.
+4. Use **Check chronology**, then **Save attribution review**. The graph reloads;
+   open the connection again to inspect the saved review. The source book's
+   updated timestamp and Change history record the review.
+
+A 1999 book listing a 1790 work's 1993 edition is chronologically possible.
+A 1790 original text listing a work first written in 1999 needs review. An editor's
+2005 bibliography may legitimately list that 1999 work. With an unknown original
+date and only a later reference year, a qualified warning explains that ambiguity
+instead of deleting the reference. No conflict detected does not verify unknown
+dates or the attribution itself.
+
+The default **all reference material** scope preserves all saved references.
+Check **Reviewed original-text citations only** to include only references manually
+classified as original text with no detected chronology warning. This changes both
+the shared graph and repeated-work statistics. It may initially be empty: old
+imports remain unreviewed, and section-based editorial/further-reading suggestions
+are inferred rather than accepted reviews.
+
+Reviews apply to individual evidence passages and source revisions, not entire
+books or inferred work identities. Metadata is separate from imported evidence
+and included in profile backups/history. Replacing an EPUB or changing pasted
+bibliography text requires review of that new revision; old metadata is retained
+but does not silently approve changed evidence. This build does not automatically
+audit or relabel existing personal bibliographies.
 
 ## Statistics for repeatedly cited works
 
@@ -180,15 +229,19 @@ its graph. Single-source rows cannot open a visualization.
 
 - **Citing books** counts distinct source-book records, regardless of rating,
   ownership or reading status. Excluded books do not contribute.
-- **Evidence passages** counts distinct citation text within each source. Duplicate
-  copies across EPUB/online/text count once for that source–target connection.
+- **Evidence passages** counts distinct citation text and attribution context
+  within each source. Duplicate copies with the same context across EPUB/online/text
+  count once for that source–target connection. Different attribution contexts
+  remain separate evidence without adding another citing book.
   Several references in one note may point to different works; the full note can
   be the evidence for each. This is not an exact count of all printed mentions.
 - **Also show repeated evidence within a single source** includes works with
   several distinct passages even if only one source book cites them. Those rows
   are available for statistics and do not enable graph exploration.
 
-Counts cover your saved bibliography set, including inferred external works.
+Counts cover your saved bibliography set in the selected attribution scope,
+including inferred external works. All-reference counts include editorial and
+further-reading material and are not proof of influence on the original author.
 They do not measure worldwide citations or count indirect/transitive citations.
 Different author/title variants can remain separate until the source is corrected
 or a future identity-review workflow reconciles them. The original evidence stays

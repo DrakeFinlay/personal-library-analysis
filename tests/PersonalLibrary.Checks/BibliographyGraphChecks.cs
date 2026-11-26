@@ -5,8 +5,8 @@ internal static class BibliographyGraphChecks
 {
     public static void Run(string workspace, Action<bool, string> check)
     {
-        var epic = new Book { Title = "The Imaginary Comedy", Author = "Dante Fictional" };
-        var philosophers = new Book { Title = "Fictional Philosophers", Author = "A. Historian" };
+        var epic = new Book { Title = "The Imaginary Comedy", Author = "Dante Fictional", OriginalYear = 1300 };
+        var philosophers = new Book { Title = "Fictional Philosophers", Author = "A. Historian", OriginalYear = 1790 };
         var caseBook = new Book { Title = "A Fictional Case", Author = "B. Scholar" };
         var other = new Book { Title = "Another Fictional Source", Author = "C. Writer" };
         var excluded = new Book { Title = "Excluded source", Excluded = true };

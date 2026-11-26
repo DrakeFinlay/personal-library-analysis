@@ -445,7 +445,9 @@ public sealed partial class LibraryStore : IDisposable
     {
         lock (gate)
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json) : null;
+            if (!File.Exists(path)) return null;
+            var bibliography = JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json);
+            return bibliography == null ? null : bibliography with { Entries = bibliography.Entries.Select(citation => citation with { EvidenceSource = bibliography.SourceSha256 }).ToArray() };
         }
     }
 

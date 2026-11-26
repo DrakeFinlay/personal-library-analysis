@@ -72,16 +72,18 @@ internal sealed class BibliographyNetworkCanvas : Canvas
         foreach (var key in nodes)
         {
             var work = graph.Nodes[key];
+            var ambiguous = work.BookId == null && work.Identity.Contains("Ambiguous", StringComparison.Ordinal);
             var label = new StackPanel();
             label.Children.Add(new TextBlock { Text = work.Title, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold, FontSize = 12, MaxHeight = 34, TextTrimming = TextTrimming.CharacterEllipsis });
-            label.Children.Add(new TextBlock { Text = $"{graph.CitedBy(key).Length} citing books · {graph.References(key).Length} references", FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
-            var button = new Button { Content = label, Width = 190, Height = 76, Padding = new Thickness(8), Margin = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Background = work.BookId == null ? Brushes.WhiteSmoke : new SolidColorBrush(Color.FromRgb(228, 243, 240)), Foreground = Brushes.Black,
+            label.Children.Add(new TextBlock { Text = work.BookId != null ? "In My Books" : ambiguous ? "Library match unresolved" : "Not in My Books", FontSize = 10, FontWeight = FontWeights.Bold });
+            label.Children.Add(new TextBlock { Text = $"{graph.CitedBy(key).Length} incoming · {graph.References(key).Length} outgoing", FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
+            var button = new Button { Content = label, Width = 190, Height = 86, Padding = new Thickness(8), Margin = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Background = work.BookId != null ? new SolidColorBrush(Color.FromRgb(223, 241, 227)) : ambiguous ? new SolidColorBrush(Color.FromRgb(255, 232, 182)) : new SolidColorBrush(Color.FromRgb(193, 218, 255)), Foreground = Brushes.Black,
                 BorderBrush = key == selected || path.Contains(key) ? Brushes.DarkOrange : key == focus ? Brushes.Teal : Brushes.SlateGray,
                 BorderThickness = new Thickness(key == selected || key == focus || path.Contains(key) ? 3 : 1), ToolTip = work.Label + "\n" + work.Identity };
             System.Windows.Automation.AutomationProperties.SetName(button, work.Label);
             button.Click += (_, _) => WorkSelected?.Invoke(key);
-            SetLeft(button, Positions[key].X - 95); SetTop(button, Positions[key].Y - 38); Children.Add(button);
+            SetLeft(button, Positions[key].X - 95); SetTop(button, Positions[key].Y - 43); Children.Add(button);
         }
     }
 
@@ -100,7 +102,7 @@ internal sealed class BibliographyNetworkCanvas : Canvas
             var collisions = 0;
             foreach (var other in Positions.Where(pair => pair.Key != source && pair.Key != target))
             {
-                var bounds = new Rect(other.Value.X - 105, other.Value.Y - 48, 210, 96);
+                var bounds = new Rect(other.Value.X - 105, other.Value.Y - 55, 210, 110);
                 for (var i = 1; i < 40; i++)
                 {
                     var t = i / 40d; var u = 1 - t;
@@ -118,7 +120,7 @@ internal sealed class BibliographyNetworkCanvas : Canvas
     private static Point Boundary(Point center, Vector direction)
     {
         var factor = Math.Min(Math.Abs(direction.X) < .01 ? double.PositiveInfinity : 101 / Math.Abs(direction.X),
-            Math.Abs(direction.Y) < .01 ? double.PositiveInfinity : 44 / Math.Abs(direction.Y));
+            Math.Abs(direction.Y) < .01 ? double.PositiveInfinity : 49 / Math.Abs(direction.Y));
         return center + direction * factor;
     }
 }

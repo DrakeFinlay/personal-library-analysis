@@ -911,8 +911,8 @@ public sealed class MainWindow : Window
     {
         var local = store.ReadEpubBibliography(book.Id);
         var online = store.ReadOnlineBibliography(book.Id);
-        var document = citation == null ? local ?? online : local?.Entries.Contains(citation) == true ? local
-            : online?.Entries.Contains(citation) == true ? online : null;
+        var document = citation == null ? local ?? online : local?.Entries.Any(entry => CitationProvenance.Fingerprint(entry) == CitationProvenance.Fingerprint(citation)) == true ? local
+            : online?.Entries.Any(entry => CitationProvenance.Fingerprint(entry) == CitationProvenance.Fingerprint(citation)) == true ? online : null;
         Window bibliography = document != null
             ? new EpubBibliographyWindow(store, book, document, citation)
             : new BibliographyTextWindow(store, book);

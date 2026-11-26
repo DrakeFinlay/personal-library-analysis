@@ -123,7 +123,7 @@ public sealed class BibliographyGraph
                 if (from == target) continue;
                 var pair = (from, target);
                 if (!edges.TryGetValue(pair, out var evidence)) edges[pair] = evidence = new();
-                evidence.TryAdd(CitedRecommendations.TextKey(citation.Text), new(source, citation));
+                evidence.TryAdd(CitedRecommendations.TextKey(citation.Text) + "|" + System.Text.Json.JsonSerializer.Serialize(citation.Attribution ?? CitationProvenance.Infer(citation.Section)), new(source, citation));
             }
         }
         return new(nodes, edges.Select(pair => new BibliographyConnection(pair.Key.Source, pair.Key.Target, pair.Value.Values.ToArray())).ToArray(),

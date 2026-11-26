@@ -10,6 +10,9 @@ status changes, reading starts, progress, finishes, rereads, shelves/groups,
 ownership/purchases, annual title plans, imports, and merges. Bibliography saves
 also record their text/source changes and update the source book's change time.
 New retained bibliography images are recorded even if the text stays the same.
+Saving a citation attribution/date review also records the review metadata before
+and after, updates the source book's change time, and appears in Recently changed.
+Reviews are included in profile backups and remain separate from imported evidence.
 An unchanged Save does not create an event or move the book into Recently changed.
 Unsaved typing is not recorded as a book change.
 

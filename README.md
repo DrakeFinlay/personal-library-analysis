@@ -125,6 +125,14 @@ by distinct citing books and evidence passages across your saved bibliography
 set, including cited works outside My Books. Identities remain inferred; ambiguous
 matches and separate parts/volumes are not silently merged.
 
+Graph nodes use green for **In My Books**, blue for **Not in My Books**, and
+amber for unresolved library matches. Select a connection, then **Review
+attribution / dates…** to distinguish original-text references from later
+editorial material or further reading and record original versus edition dates.
+**Reviewed original-text citations only** filters the graph and statistics to
+manually reviewed references without detected date conflicts. See the
+[attribution review steps](.docs/BIBLIOGRAPHIES.md#review-attribution-and-publication-dates).
+
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.
 Use a blank date for undated reading history. Set shelves, ratings,

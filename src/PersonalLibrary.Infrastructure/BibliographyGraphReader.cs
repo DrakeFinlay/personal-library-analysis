@@ -4,14 +4,28 @@ namespace PersonalLibrary.Infrastructure;
 
 public sealed partial class LibraryStore
 {
-    public BibliographyGraph ReadBibliographyGraph()
+    public EpubCitation[] ReadCitationEvidence(Guid id, IReadOnlyList<Book>? library = null)
+    {
+        lock (gate)
+        {
+            library ??= Books(); var text = Bibliography(id).Text;
+            return ReviewedCitations(id, (ReadEpubBibliography(id)?.Entries ?? []).Concat(ReadOnlineBibliography(id)?.Entries ?? [])
+                .Concat(BibliographyMatches.ReadText(text, library).Select(citation => citation with { EvidenceSource = Hash(System.Text.Encoding.UTF8.GetBytes(text)) })));
+        }
+    }
+    public BibliographyGraph ReadBibliographyGraph(bool originalTextOnly = false)
     {
         lock (gate)
         {
             var library = Books();
             return BibliographyGraph.Build(library, id =>
-                (ReadEpubBibliography(id)?.Entries ?? []).Concat(ReadOnlineBibliography(id)?.Entries ?? [])
-                    .Concat(BibliographyMatches.ReadText(Bibliography(id).Text, library)));
+            {
+                var citations = ReadCitationEvidence(id, library);
+                if (!originalTextOnly) return citations;
+                var source = library.Single(book => book.Id == id);
+                return citations.Where(citation => CitationProvenance.Assess(source, citation,
+                    BibliographyMatches.Find(citation, library) is [var target] ? target : null).EligibleOriginalText);
+            });
         }
     }
 }

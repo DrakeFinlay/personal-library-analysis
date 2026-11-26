@@ -27,6 +27,7 @@ try
     EpubImportChecks.Run(workspace, Check, Reject);
     PhotoOcrChecks.Run(workspace, Check, Reject);
     BibliographyGraphChecks.Run(workspace, Check);
+    CitationProvenanceChecks.Run(workspace, Check, Reject);
     BrowsingChecks.Run(workspace, Check);
     LocalCitationChecks.Run(workspace, Check);
     var book = NewBook("Synthetic coastal history");

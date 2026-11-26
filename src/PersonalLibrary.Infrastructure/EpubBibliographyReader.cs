@@ -66,7 +66,8 @@ public static class EpubBibliographyReader
                     .TakeWhile(element => !IsBibliographyHeading(element) && !IsEndOfSection(heading, element));
                 var chapter = IsReferenceHeading(heading) ? Clean(section.Descendants().TakeWhile(element => element != heading)
                     .LastOrDefault(element => element.Name.LocalName == "h1")?.Value ?? "") : "";
-                ReadSection(blocks.ToArray(), member.FullName, chapter, entries, introductoryNotes);
+                var context = section.Descendants().TakeWhile(element => element != heading).LastOrDefault(IsHeading)?.Value ?? "";
+                ReadSection(blocks.ToArray(), member.FullName, chapter, entries, introductoryNotes, CitationProvenance.Infer(heading.Value + " " + context));
             }
         }
         if (entries.Count == 0)
@@ -100,7 +101,7 @@ public static class EpubBibliographyReader
         }
     }
 
-    private static void ReadSection(XElement[] blocks, string archiveEntry, string chapter, List<EpubCitation> entries, List<string> notes)
+    private static void ReadSection(XElement[] blocks, string archiveEntry, string chapter, List<EpubCitation> entries, List<string> notes, CitationAttribution attribution)
     {
         var marked = blocks.Where(IsMarkedCitation).ToHashSet();
         var hasCitation = false;
@@ -126,7 +127,7 @@ public static class EpubBibliographyReader
             var title = emphasis == null ? "" : Clean(emphasis.Value);
             var author = emphasis == null ? "" : Clean(string.Concat(element.DescendantNodes()
                 .TakeWhile(node => node != emphasis).OfType<XText>().Select(node => node.Value))).TrimEnd(':', ',', '.', ' ');
-            entries.Add(new EpubCitation(entries.Count + 1, group, text, title, author, archiveEntry, (string?)element.Attribute("id")));
+            entries.Add(new EpubCitation(entries.Count + 1, group, text, title, author, archiveEntry, (string?)element.Attribute("id"), attribution));
             hasCitation = true;
         }
     }
