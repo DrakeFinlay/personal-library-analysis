@@ -1011,6 +1011,40 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   citations. General catalog discovery and broader recommendation modeling remain
   future work; no large-library performance benchmark is claimed.
 
+### Full saved-library EPUB rerun (November 26, 2026)
+
+- Reran the current EPUB bibliography reader across all 759 library records:
+  207 available unique EPUBs, including retained manual imports, were scanned;
+  552 records had no available linked EPUB. This was an explicitly authorized
+  personal-library operation, not an automatic import or a change to app behavior.
+- Created and verified a complete pre-rerun profile backup before saving. Applied
+  two newly recovered bibliographies (919 entries combined) and 16 updates to
+  existing bibliographies (40 additional entries plus extraction metadata changes).
+  All 18 saves passed verification and recorded bibliography change history.
+  The profile now contains 37 saved EPUB bibliographies and 9,698 entries.
+  These are citation entries, not a count of distinct or verified works.
+- Replacement required the same source EPUB hash and preservation of every old
+  citation's text, archive member and anchor. Four previously saved special-layout
+  extractions were not reproduced; another returned only two entries instead of
+  105 because its bibliography is image-based. All five were left intact. All 19
+  untouched saved EPUB bibliography files passed byte-for-byte hash checks.
+  Remaining unsupported formats include leaf blockquotes, split-document lists,
+  additional reading/resource headings and image-only bibliographies. One scanned
+  EPUB reported two unreadable content documents; extraction is not comprehensive.
+- Verified that all book fields except the intended update timestamps remained
+  unchanged and that 167 existing non-EPUB evidence/source/review files remained
+  byte-for-byte unchanged. Rebuilt graph evaluation found 36 works cited by more
+  than one source and 34 Discovery leads; these remain inferred from saved evidence.
+- Private per-book scan/apply reports and verification results remain in ignored
+  `.local/epub-rerun/`; source copies and the verified backup remain in the personal
+  profile. None are included in Git. Open Bibliographies to inspect the saved
+  results, or refresh Discovery if it was already open during the rerun. The
+  normal per-book reanalysis workflow remains documented in
+  [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md); no batch-scan UI was added.
+- Validation: all 289 executable checks passed using isolated synthetic profiles;
+  the Release build passed with zero warnings/errors. No application code,
+  packaging or launch behavior changed, so no new package was required.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
