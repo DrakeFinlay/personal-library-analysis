@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -9,7 +10,7 @@ namespace PersonalLibrary.App;
 
 internal sealed class BibliographyTextWindow : Window
 {
-    public BibliographyTextWindow(LibraryStore store, Book book, bool startEditing = false)
+    public BibliographyTextWindow(LibraryStore store, Book book, bool startEditing = false, bool scanOnOpen = false)
     {
         Title = $"{book.Title} — Bibliography";
         Style = (Style)Application.Current.FindResource(typeof(Window));
@@ -23,6 +24,7 @@ internal sealed class BibliographyTextWindow : Window
         var draftImages = new List<string>();
         DirectoryInfo? staging = null;
         var scanning = false;
+        CancellationTokenSource? scanCancellation = null;
         var root = new DockPanel { Margin = new Thickness(22) };
         var heading = new StackPanel();
         heading.Children.Add(Ui.Heading(book.Title));
@@ -48,6 +50,19 @@ internal sealed class BibliographyTextWindow : Window
         root.Children.Add(text);
         var edit = new Button { Content = "Edit bibliography" };
         var scan = new Button { Content = "Scan images…" };
+        var adjust = new Button { Content = "Adjust photo areas…", ToolTip = "Optional manual retry for photos the automatic scan could not read correctly." };
+        var cancelScan = Ui.Button("Cancel scan", () => scanCancellation?.Cancel());
+        cancelScan.Visibility = Visibility.Collapsed;
+        var review = Ui.Button("Review citations / local matches", () =>
+        {
+            var library = store.Books();
+            var entries = BibliographyMatches.ReadText(text.Text, library, store.CitationIdentities().Entries);
+            if (entries.Length == 0)
+                throw new InvalidOperationException("No identifiable citations yet. The complete text can still be saved. Correct OCR errors and separate references with blank lines, then review again.");
+            var preview = new EpubBibliography("Editable bibliography text", "",
+                ["Possible matches only. OCR can lose formatting; unrecognized text is preserved in the text editor. Review and correct before saving."], entries, 0);
+            new EpubBibliographyWindow(store, book, preview, showAlternate: false, draftPreview: true) { Owner = this }.ShowDialog();
+        });
         var save = Ui.Button("Save bibliography", () =>
         {
             if (string.IsNullOrWhiteSpace(text.Text))
@@ -56,53 +71,100 @@ internal sealed class BibliographyTextWindow : Window
             DialogResult = true;
         }, true);
         var close = Ui.Button("Close", Close);
-        foreach (var button in new[] { edit, scan, save, close }) actions.Children.Add(button);
+        var processed = Ui.Button("Review saved interpretations…", () =>
+        {
+            var document = new EpubBibliography("All saved source evidence", "", [], store.ReadCitationEvidence(book.Id), 0);
+            new EpubBibliographyWindow(store, book, document, showAlternate: false, processedView: true) { Owner = this }.ShowDialog();
+        });
+        processed.Visibility = saved.Hash != null ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var button in new[] { edit, scan, adjust, cancelScan, review, save, close }) actions.Children.Add(button);
+        actions.Children.Add(processed);
         edit.Click += (_, _) => SetEditing(true);
 
-        scan.Click += async (_, _) =>
+        scan.Click += async (_, _) => await Scan(false);
+        adjust.Click += async (_, _) => await Scan(true);
+        async Task Scan(bool manual)
         {
             var picker = new OpenFileDialog
             {
-                Title = "Select bibliography page images",
+                Title = manual ? "Select photos to adjust and rescan" : "Select bibliography photos — scan automatically",
                 Filter = "Images|*.jpg;*.jpeg;*.png;*.heic;*.heif;*.webp;*.tif;*.tiff;*.bmp|All files|*.*",
                 Multiselect = true
             };
             if (picker.ShowDialog(this) != true) return;
             var files = picker.FileNames.OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase).ToArray();
+            SelectedPhotoPage[]? selected = null;
+            if (manual)
+            {
+                var selection = new PhotoPagesWindow(files) { Owner = this };
+                if (selection.ShowDialog() != true) return;
+                selected = selection.Pages;
+            }
             scanning = true;
-            scan.IsEnabled = save.IsEnabled = close.IsEnabled = false;
+            scanCancellation = new CancellationTokenSource();
+            cancelScan.Visibility = Visibility.Visible;
+            scan.IsEnabled = adjust.IsEnabled = review.IsEnabled = save.IsEnabled = close.IsEnabled = false;
             var failures = new List<string>();
+            var scannedAreas = 0; var layoutWarnings = 0;
             try
             {
                 staging ??= Directory.CreateTempSubdirectory("personal-library-ocr-");
                 for (var index = 0; index < files.Length; index++)
                 {
+                    scanCancellation.Token.ThrowIfCancellationRequested();
                     var filename = Path.GetFileName(files[index]);
-                    status.Text = $"Scanning {index + 1} of {files.Length} · {filename}";
+                    if (manual && !selected!.Any(page => page.Path == files[index])) continue;
+                    status.Text = $"{(manual ? "Preparing" : "Finding text / orientation")} photo {index + 1} of {files.Length} · {filename}";
                     try
                     {
                         var folder = staging.CreateSubdirectory(Guid.NewGuid().ToString("N"));
                         var staged = Path.Combine(folder.FullName, filename);
-                        await Task.Run(() => File.Copy(files[index], staged));
-                        var recognized = await BibliographyOcr.ReadAsync(staged);
-                        if (recognized.Length == 0) throw new InvalidOperationException("No text was recognized.");
-                        draftImages.Add(staged);
-                        text.AppendText((text.Text.Length > 0 ? "\n\n" : "") + recognized);
+                        await Task.Run(() => File.Copy(files[index], staged), scanCancellation.Token);
+                        var plan = manual ? null : await AutomaticPhotoOcr.AnalyzeAsync(staged, folder.FullName, scanCancellation.Token);
+                        var pages = manual ? selected!.Where(page => page.Path == files[index]).ToArray()
+                            : plan!.Layout.Areas.Select((area, i) => new SelectedPhotoPage(staged, area, true, i + 1, plan.QuarterTurns)).ToArray();
+                        foreach (var page in pages)
+                        {
+                            scanCancellation.Token.ThrowIfCancellationRequested();
+                            status.Text = $"Straightening / scanning photo {index + 1} of {files.Length} · area {page.AreaNumber} · {filename}";
+                            try
+                            {
+                                var prepared = Path.Combine(folder.FullName, $"area-{page.AreaNumber}.png");
+                                await Task.Run(() => PhotoPageImage.Prepare(staged, page.Area, page.ImproveContrast, prepared, page.QuarterTurns), scanCancellation.Token);
+                                var recognizedPage = await BibliographyOcr.ReadAsync(prepared, scanCancellation.Token);
+                                var recognized = OcrParagraphs.Reconstruct(recognizedPage);
+                                if (recognized.Length == 0) throw new InvalidOperationException("No text was recognized.");
+                                var warnings = (plan?.Layout.Warnings ?? []).Concat(OcrParagraphs.ReviewWarnings(recognizedPage)).ToArray();
+                                var evidence = Path.Combine(folder.FullName, $"area-{page.AreaNumber}.ocr.json");
+                                await File.WriteAllTextAsync(evidence, JsonSerializer.Serialize(new PhotoOcrEvidence(filename, page.Area, page.ImproveContrast,
+                                    recognizedPage, page.QuarterTurns, plan?.Layout.Warnings, plan?.SourceSha256 ?? ""), LibraryStore.Json), scanCancellation.Token);
+                                if (!draftImages.Contains(staged)) draftImages.Add(staged);
+                                if (plan != null && !draftImages.Contains(Path.Combine(folder.FullName, "photo-layout.json"))) draftImages.Add(Path.Combine(folder.FullName, "photo-layout.json"));
+                                draftImages.Add(prepared); draftImages.Add(evidence); scannedAreas++; layoutWarnings += warnings.Length;
+                                var warning = warnings.Length == 0 ? "" : "\n\n> Review: " + string.Join(" ", warnings);
+                                text.AppendText((text.Text.Length > 0 ? "\n\n" : "") + $"## Photo: {filename} · area {page.AreaNumber}\n\n" + recognized + warning);
+                            }
+                            catch (OperationCanceledException) { throw; }
+                            catch (Exception ex) { failures.Add($"{filename} · area {page.AreaNumber} · {ex.Message}"); }
+                        }
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex) { failures.Add($"{filename} · {ex.Message}"); }
                 }
-                status.Text = failures.Count == 0
-                    ? "Review the scanned text, then save the bibliography."
-                    : string.Join("\n", failures.Take(3)) + (failures.Count > 3 ? $"\n{failures.Count - 3} more images failed." : "");
+                status.Text = $"Scanned {scannedAreas} text areas. Review notices: {layoutWarnings}. Review citations / local matches, then save. Originals and OCR evidence are retained. Use Adjust photo areas only for results that need correction."
+                    + (failures.Count == 0 ? "" : "\n" + string.Join("\n", failures.Take(3)) + (failures.Count > 3 ? $"\n{failures.Count - 3} more areas failed." : ""));
                 text.ScrollToEnd();
             }
+            catch (OperationCanceledException) { status.Text = "Scan cancelled. Successfully scanned pages remain in your draft for review."; }
             catch (Exception ex) { status.Text = ex.Message; }
             finally
             {
                 scanning = false;
-                scan.IsEnabled = save.IsEnabled = close.IsEnabled = true;
+                scan.IsEnabled = adjust.IsEnabled = review.IsEnabled = save.IsEnabled = close.IsEnabled = true;
+                cancelScan.Visibility = Visibility.Collapsed;
+                scanCancellation.Dispose(); scanCancellation = null;
             }
-        };
+        }
         Closing += (_, args) =>
         {
             if (scanning) { args.Cancel = true; return; }
@@ -118,13 +180,14 @@ internal sealed class BibliographyTextWindow : Window
         };
         Content = root;
         SetEditing(startEditing);
+        if (scanOnOpen) Loaded += (_, _) => scan.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
         void SetEditing(bool editing)
         {
             text.IsReadOnly = !editing;
             edit.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
-            scan.Visibility = save.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-            status.Text = editing ? "Paste text from an EPUB or PDF, or scan photos of bibliography pages." : "";
+            scan.Visibility = adjust.Visibility = save.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+            status.Text = editing ? "Choose Scan images to detect, straighten and scan all selected photos automatically. Adjust photo areas is an optional retry; review the combined text before saving." : "";
             if (editing) text.Focus();
         }
     }

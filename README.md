@@ -7,8 +7,8 @@ Start with the [approved design](.docs/DESIGN.md) and
 [implementation status](.docs/IMPLEMENTATION.md).
 
 The offline tracker includes Calibre and Goodreads imports and optional online
-book lookup. Development uses synthetic fixtures. Advanced statistics,
-recommendations, OCR, and Cover Flow follow in later stages.
+book lookup, statistics, recommendations, and offline bibliography OCR.
+Development uses synthetic fixtures. Cover Flow remains planned.
 
 Stack: C#/.NET 10, WPF, and SQLite, consistent with the neighboring projects.
 Personal profiles, downloads, models, backups, and build output stay outside Git.
@@ -36,8 +36,37 @@ Keep the accompanying binaries, notices, and license files together.
 
 ## Using the first build
 
-Switch between List and Covers in My Books. The search and filters apply to both
-views. The Home sidebar also shows cover thumbnails for queued and recent books.
+My Books starts with **To read** in a compact text **Table**, loading the first
+50 matching books. Choose a status on the far left, then a shelf or user-defined
+to-read group above the table. **Show all books** loads the full filtered range.
+It sorts by **To-read position** from 1 upward; **Descending** reverses the order.
+The table shows **Date added** as well. Both fields can be edited in Book & editions.
+**Covers** remains optional. See [library browsing and groups](.docs/LIBRARY-BROWSING.md)
+for selection, sorting, and group-assignment steps.
+
+The visible title/author/ISBN search defaults to **Entire library**, including
+books outside the selected status and beyond the first 50. Choose **Current
+filters** to narrow search to your selected status, shelf, and group instead.
+Clear the search to return to normal filtered browsing.
+
+For older Goodreads imports, **Settings → Recover saved Goodreads order and
+dates…** previews missing values retained in the saved export fields and fills
+them after creating a verified backup.
+
+The Home sidebar shows the ten most recently changed books across reading
+statuses, newest save first. Select a title to open it. Imports and batch saves
+also count as changes; excluded books are omitted.
+
+Open **Goals** in the top navigation to maintain **Reads for [year]**. Search by
+title or author, then select **Add: [title]** to include a book from My Books.
+For a missing title, use **+ Add a book** first. Each title appears once per year;
+the same title can be planned in multiple years. Enter a year and select **Show
+year** to review another year's list. Open a planned title to update its reading.
+A completed reading dated in that year (including a year-only date or reread)
+marks it complete. Undated history does not. **Remove from year** only removes
+the plan entry and keeps the book and reading history. Plans save immediately.
+The optional numeric **reading challenge** and **Save goal** are below the list
+in Goals, independent of your chosen titles. Existing annual targets are kept.
 
 In **Book & editions**, you can enter an ISBN with or without hyphens. For
 **Download metadata**, `978-1433-58475-6` and `9781433584756` are equivalent.
@@ -61,7 +90,7 @@ Goodreads ZIP** before choosing the CSV. The app uses its reading sessions to
 fill start dates and recover dated rereads for titles unique in the CSV.
 
 In **My Books**, enable **Bulk edit**, select individual books or **Select all
-results**, choose a status or enter a shelf name, then apply. Changing filters
+shown**, choose a status or enter a shelf or group name, then apply. Changing filters
 keeps only the selected books still in the results. Marking a book Read in bulk
 leaves the date unknown when the book has no prior completion.
 
@@ -70,19 +99,73 @@ or both libraries. The combined action uses Calibre's trash and includes every
 format in each selected Calibre entry. Close Calibre before confirming that
 action. A personal-only removal skips the record on later Calibre refreshes.
 
-The book editor's **Bibliography** tab can extract a dedicated bibliography
-from its linked EPUB. **Browse EPUB citations** opens search, sections, the
-original citation text, and possible matches in My Books. Your Markdown notes
-are saved separately.
+Choose **Bibliographies → Import bibliography from EPUB…**, select a source
+book, and choose an EPUB from anywhere on your computer. Analyze it, review the
+citations and possible local matches, then save. The same action appears in the
+book editor's **Bibliography** tab, with a linked Calibre EPUB filled in when
+available. Saving creates a verified backup, retains the original EPUB, and
+records the bibliography in Change history. **Browse EPUB citations** opens
+search, sections, original citation text, and possible matches in My Books.
+Your Markdown notes and online bibliography are preserved separately.
+
+EPUB analysis also recognizes combined **Bibliography and Recommended Reading**
+headings. Re-analyze an edition missed by an earlier build, then review and save
+the extracted preview.
+
+In **Bibliographies**, use **Import bibliography photos…** to scan page images
+offline. Selecting photos starts automatic orientation detection, page/text-area
+selection, straightening and recognition for the whole batch. **Adjust photo
+areas…** is an optional manual retry. Review reconstructed notes and local matches
+before saving. Several citations within one note and unresolved full notes remain
+reviewable. Original photos, detected areas, rotation/layout and raw OCR evidence
+are retained.
+**Cited books in My Books** combines matching library titles from all saved
+bibliographies and shows which sources cite them. See the
+[bibliography guide](.docs/BIBLIOGRAPHIES.md) for steps and extraction limitations.
+
+**Bibliographies → Connections & citation stats** opens an interactive citation
+network of shared citations and their connecting source books. Click a shared
+work in the left list to immediately update the graph; expand branches, trace paths, zoom, and inspect
+the original evidence behind each arrow. **Repeatedly cited works** ranks titles
+by distinct citing books and evidence passages across your saved bibliography
+set, including cited works outside My Books. Identities are inferred unless reviewed; ambiguous
+matches and separate parts/volumes are not silently merged.
+
+**Discovery** finds works shared by multiple saved bibliographies, including
+titles outside My Books. Choose specific source books to see their intersection,
+inspect why a work appears, and open its graph or find/add it. The former
+**Cited by books you enjoyed** section now lives in Discovery as a second view.
+See the [Discovery guide](.docs/DISCOVERY.md) for ranking, filters and preferences.
+
+Graph nodes use green for **In My Books**, blue for **Not in My Books**, and
+amber for unresolved library matches. Select a connection, then **Review
+attribution / dates…** to distinguish original-text references from later
+editorial material or further reading and record original versus edition dates.
+**Reviewed original-text citations only** filters the graph and statistics to
+manually reviewed references without detected date conflicts. See the
+[attribution review steps](.docs/BIBLIOGRAPHIES.md#review-attribution-and-publication-dates).
+
+**Bibliographies → Review processed citations…** opens the interpretation layer:
+separate references within notes, resolved short titles/`Ibid.`, locators and
+edition details, unresolved references, and possible library matches. Use
+**Review work identity…** to correct an identity, merge it into a reviewed work,
+or exclude a false interpretation while preserving the evidence. See the
+[citation processing guide](.docs/CITATION-PROCESSING.md) for the workflow and limits.
 
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.
-Use a blank date for undated reading history. Set shelves, Read next, ratings,
+Use a blank date for undated reading history. Set shelves, ratings,
 reviews, and private notes in the editor. Paste references in Bibliography to save
 a Markdown document in the profile. Reading actions save immediately; other edits
 save with Save & close. History dates also save with Save & close.
 
-Settings provides light/dark modes, the annual goal, profile/backup folder access,
+Select **Change history** at the bottom of a book's editor to inspect saved
+before-and-after values for edits, status changes, readings/rereads, imports, and
+bibliographies. Existing profiles get a verified migration backup and a starting
+snapshot; earlier edit history cannot be reconstructed. See
+[book change history](.docs/CHANGE-HISTORY.md) for coverage and backup behavior.
+
+Settings provides light/dark modes, profile/backup folder access,
 manual backup, and validated restore preview. Daily backups happen after changes;
 14 daily and 4 weekly archives are retained. Manual/pre-restore archives are kept.
 Backup errors are shown without discarding saved changes. Each backup includes the

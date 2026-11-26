@@ -87,6 +87,7 @@ internal static class CalibreChecks
 
         first.Title = "Personal title";
         first.Shelves.Add("Personal shelf");
+        first.ToReadGroups.AddRange(["Research for a book", "Biblical research"]);
         first.SelectedEdition.PageCount = 250;
         first.SelectedEdition.Publisher = "Local Press";
         ReadingRules.Classify(first, ReadingStatus.Read);
@@ -116,11 +117,12 @@ internal static class CalibreChecks
         var updated = store.Books().Single(book => book.Id == first.Id);
         check(store.Books().Count == 3 && updated.Title == "Personal title" && updated.Author == "Corrected Author, Sample Author"
             && updated.Notes == "Edited after preview" && updated.Shelves.SequenceEqual(["Personal shelf"])
+            && updated.ToReadGroups.SequenceEqual(["Research for a book", "Biblical research"])
             && updated.SelectedEdition.Id == first.SelectedEdition.Id && updated.SelectedEdition.PageCount == 250
             && updated.SelectedEdition.Publisher == "Local Press" && updated.Calibre?.Metadata.Publisher == "Revised Calibre Press"
             && updated.Status == ReadingStatus.Read && updated.Readings.Single().Finished == null
             && File.ReadAllBytes(store.CoverPath(updated.SelectedEdition)!).SequenceEqual(new byte[] { 9, 8, 7 }),
-            "Refresh updates untouched source fields and preserves local metadata and undated reading history");
+            "Refresh updates untouched source fields and preserves local metadata, groups, and undated reading history");
         ReadingRules.Classify(updated, ReadingStatus.ToRead);
         ReadingRules.Classify(updated, ReadingStatus.Read);
         check(updated.Readings.Count == 1 && ReadingRules.CompletedInYear([updated], DateTime.Today.Year) == 0,
@@ -145,6 +147,7 @@ internal static class CalibreChecks
         check(updated.Status == ReadingStatus.MusicBook && updated.Readings.Count == 1,
             "A Goodreads refresh preserves a locally assigned collection category and its reading history");
         store.SaveBibliography(updated.Id, "Synthetic notes for removal", null);
+        updated = store.FindBook(updated.Id)!;
         var removed = store.RemoveBooks([updated]);
         var afterRemoval = CalibreImporter.Preview(store, folder);
         var afterGoodreadsRemoval = GoodreadsImporter.Preview(store, goodreadsPath);

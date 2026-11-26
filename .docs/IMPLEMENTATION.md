@@ -576,6 +576,475 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - The Release build completed with no warnings or errors, and the regular
   Windows launcher build was published successfully.
 
+## Home sidebar and annual title plans
+
+- Home now shows the ten most recently saved books across reading statuses,
+  newest first, excluding out-of-scope books. Reading updates, metadata edits,
+  imports, batch saves, and annual plan changes can move a book into this list.
+- Read next has been removed from Home and the book editor. Legacy saved queue
+  fields remain readable for compatibility. The numeric reading challenge and
+  target editor have moved from Home/Settings to the new top-navigation Goals page.
+  Existing annual targets are preserved.
+- Goals offers a separate Reads for [year] list. Search My Books by title or
+  author to add a title; add missing books through + Add a book first. Show year
+  switches lists. Each title occurs once per year and may belong to multiple
+  years. Open a title to update its reading; Remove from year preserves the book
+  and all reading history. Plans save immediately and merge with duplicate books.
+- Completion is derived from an eligible completed reading in the selected year,
+  including year-only dates and rereads. A title counts once in its list, while
+  the separate numeric challenge still counts each completed reading. Undated
+  history and special collections do not satisfy annual completion.
+- All 171 synthetic checks passed, covering plan persistence, duplicate adds,
+  year removal, history preservation, completion attribution, merging, and recent
+  ordering across statuses. The Release build passed with no warnings or errors;
+  the regular self-contained Windows publish succeeded after closing the test app.
+  The isolated TEST PROFILE verified Home's revised sidebar, adding a planned
+  title, switching to a separate year's empty list, and persistence after relaunch
+  in the published build. No personal data was used.
+- Plans use existing library titles and alphabetical order; manual ordering and
+  free-text titles outside My Books are not included.
+
+## Bibliography photo import and combined local citations
+
+- Bibliographies offers Import bibliography photos directly. Choose a source
+  book and images, scan offline, correct the draft, review citations/local matches,
+  then save. Cancellation preserves successfully scanned pages in the draft;
+  individual page failures are reported. Saved originals and Markdown revisions
+  use the existing backup and external-edit protections.
+- Cited books in My Books combines local matches across EPUB, online, and saved
+  pasted/scanned text, without a rating, ownership, or reading-status requirement.
+  Titles are deduplicated and retain original citation evidence and source links.
+  Individual and combined bibliography views share matching rules. Wrapped OCR
+  lines and lost italics can match known library titles with author evidence.
+- Synthetic checks verify source deduplication, author mismatches, and combined
+  persisted text/EPUB evidence. In an isolated TEST PROFILE, scanned a fictional
+  page, reviewed two local matches, and saved the text and retained original PNG.
+  Verified the combined view showed one existing title with two citing sources.
+- Matches remain suggestions. Unsupported citation styles, OCR spelling errors,
+  columns, and missing author/title evidence can prevent matching. Complete text
+  is still saved. Other image formats depend on installed Windows codecs; OCR
+  requires an installed Windows OCR language. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
+## Faster My Books and overlapping to-read groups
+
+- My Books opens at To read in a compact, virtualized text Table without cover
+  decoding. Status filters are on the far left; independent shelf and group
+  menus narrow the range. Changing status keeps the shelf/group choice. Optional
+  title/author/ISBN search is under Find a specific book and waits briefly after
+  typing. Covers remains available.
+- Normal database browsing materializes at most 50 matching books, after filtering
+  and sorting the full library. Show all books expands the filtered range and Show
+  first 50 collapses it. Status/shelf/group/search changes reset the limit. My Books
+  no longer reloads and retains all book aggregates on navigation. Other screens
+  still load their full calculation inputs, and Missing local cover checks files.
+- Table rows open with a double-click or Enter. Title/Author headers and sort
+  controls stay synchronized. Bulk selection uses Ctrl/Shift and Select all shown
+  targets only the loaded rows. Existing batch status, shelf, acquisition,
+  configuration, enrichment, and removal workflows remain accessible.
+- Book & editions saves overlapping To-read groups with existing-name suggestions.
+  Bulk Add to group preserves existing memberships. Groups are independent of
+  shelves and persist through status changes, imports, and merges; edit a book's
+  group field to remove its memberships. See [LIBRARY-BROWSING.md](LIBRARY-BROWSING.md).
+- All 182 synthetic checks passed. On this machine, first-50 database queries
+  against a 2,000-book fixture took about 19–22 ms; these are query timings, not
+  application-startup or full UI benchmarks. Windows verification in the isolated
+  TEST PROFILE confirmed the default 50 rows, shelf/status switching, group
+  intersections, 499-row expansion, and a saved custom group on 50 selected books.
+  Verified synchronized header sorting, the saved 50-book custom group, editor
+  closure with filters retained, and reopened OCR text in the published build.
+  The Release build passed without warnings/errors, and the regular Windows
+  launcher build was published. No personal data was used.
+
+## Per-book saved change history
+
+- Schema 2 adds an indexed SQLite journal of book creation, updates, and removals
+  with before/after snapshots. Database triggers include specialized SQL ratings
+  updates as well as normal/batch saves and imports. Merges retain both histories
+  under the surviving book. The journal is separate from paged library records.
+- Change history at the bottom of the book editor shows dated events and field
+  differences, loading 100 entries at a time. Bibliography text/structured-source
+  edits and new retained images have their own detail and update the source book's
+  timestamp. Unchanged saves preserve timestamps and create no artificial events.
+- Existing profiles get a verified pre-history-migration backup and a Tracking
+  started snapshot. Schema 1 backups remain restorable and are upgraded before
+  further writes. Backups include the journal; restore returns to that timeline.
+- Synthetic checks cover starts/progress/finishes/rereads, field details, no-op
+  saves, failed batches, attachment edits, merge history, paging, backup/restore,
+  and migration of old profiles. History before this upgrade and external file
+  edits cannot be reconstructed. See [CHANGE-HISTORY.md](CHANGE-HISTORY.md).
+- The Release build passed with no warnings/errors. An isolated TEST PROFILE
+  displayed saved note/status/reading changes, including both completed readings
+  and their reread transitions, with before/after values in the history viewer.
+
+## Goodreads To-read order and library-addition dates
+
+- Books have optional To-read position and Date added fields, editable in Book &
+  editions and visible in the table. My Books defaults to numeric rank ascending
+  from 1; Descending reverses it. Unknown ranks remain last. Date/Title/Author
+  sorting remains available and applies before the 50-result limit.
+- Goodreads reads the canonical to-read shelf's position from Bookshelves with
+  positions and its Date Added value. Source-managed values refresh while local
+  edits, including explicit blanks, survive imports and merges. Dates remain
+  independent of status changes and last-edit timestamps. New local books get
+  today's addition date; older undated records are not assigned invented dates.
+- Settings offers a targeted preview/recovery from retained Goodreads fields. It
+  verifies a backup, updates only rank/date/change time in SQLite, records the
+  changes in book history, rejects stale previews, and is idempotent. Other shelf
+  positions, invalid dates, and unlinked books remain unknown.
+- All 204 synthetic checks passed, including numeric reversal, missing values,
+  sorting before pagination, exact field preservation, stale/repeat recovery,
+  source refresh, and local overrides through merges. The Release build passed
+  without warnings/errors and the regular Windows launcher build was published.
+  An isolated TEST PROFILE verified positions 1 upward and reversed from 65,
+  displayed dates, editable fields, and the before/after history viewer.
+- The authorized normal-profile recovery filled 112 canonical To-read positions
+  and 482 Date Added values across 482 books. All 759 book identities and every
+  unrelated saved field were preserved exactly; existing profile files were
+  hash-checked as unchanged. Verified migration and recovery backups were created.
+  The journal contains 759 starting snapshots and 482 recovery events. An independent
+  read-back against those snapshots verified the changes; a repeat preview is empty.
+- The remaining 117 To-read positions are unknown: 110 books have no Goodreads
+  link and seven use the separate Japanese To-read shelf without a canonical
+  to-read position. Their source fields are retained and no global ranks were
+  fabricated. These counts describe this recovery and can change with later edits.
+
+## Reusable EPUB bibliography import
+
+- Bibliographies and the book editor offer **Import bibliography from EPUB…**
+  for any saved source book, independent of Calibre. A linked Calibre EPUB is
+  prefilled when available. Local analysis produces a read-only text preview and
+  a citation/local-match review; saving is explicit and runs off the UI thread.
+- Saving verifies a profile backup, retains the original EPUB by hash, preserves
+  personal Markdown and online bibliography records, and records citation evidence
+  in source-book Change history. Replacements reject stale file/content previews.
+  Recognition now includes **Bibliography of Works Cited** headings.
+- All 213 synthetic checks passed, covering unlinked files, analysis without
+  saving, backup/source preservation, history, replacement, stale previews, missing
+  source books, and unsuccessful extraction. Release build passed with no warnings
+  or errors; the regular Windows launcher was published. An isolated TEST PROFILE
+  verified the top-level action, preview,
+  possible local matches, explicit save, and refreshed bibliography card.
+- The authorized God’s Philosophers import saved 337 entries with zero unreadable
+  documents. Every citation paragraph was checked against the EPUB in order. Two
+  entries lack a recognized title but retain their complete citation text. A verified
+  backup and exact source copy were retained; all 759 book identities, unrelated
+  fields, personal Markdown, and online bibliography were verified unchanged.
+- Dedicated bibliography extraction remains layout-dependent. General endnotes,
+  encrypted content, manual section selection, editable structured citations,
+  and accepted citation edges remain outside this workflow. Practical steps and
+  limitations are in [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
+## Photo bibliography and mixed-note import
+
+- Added manual four-corner page/text selection before scanning, left/right/whole
+  presets, a straightened preview, per-photo acceptance/skipping, and additional
+  areas from the same photo. Orientation-corrected grayscale areas are projected
+  to rectangles with optional local illumination normalization; no additional
+  models or OCR downloads are required. The original photo remains unchanged.
+- Windows OCR now returns word positions/language and preserves both whole-page
+  and overlapping-band recognition for tall areas. Reconstruct wrapped paragraphs
+  and numbered notes, flag possible missing note numbers/slant, and label each
+  photo/area. Saving retains the original, prepared PNG, crop and raw OCR JSON
+  alongside existing Markdown revisions and attachment audit history.
+- Review recognizes multiple full publication references in one note and keeps
+  full-note review entries, including unresolved short forms and commentary.
+  Possible known-title matches can tolerate lost spaces with author evidence;
+  identities and absent content are never accepted or filled in automatically.
+- Local evaluation used IMG_2792, IMG_2815 and IMG_2829 from the supplied photo
+  set. Selected areas removed acknowledgments/facing-page/underlying-page text;
+  mixed notes were reconstructed as readable paragraphs. Remaining spelling,
+  spacing and note-number errors are visible, particularly on the curved page.
+  This is a three-photo evaluation, not an accuracy claim for the entire set.
+- An isolated TEST PROFILE verified corner dragging, straightened preview,
+  acceptance, offline recognition, reference/full-note review, local matches and
+  explicit saving. Evidence-file verification exposed a serialization bug, fixed
+  with a named evidence record and a production-settings round-trip check.
+  A second UI scan verified the saved JSON contains its source, crop coordinates,
+  language, six recognized lines and 27 words. All 228 executable checks passed;
+  the Release build passed without warnings/errors and the Windows launcher was
+  published. No normal-profile bibliography was overwritten during evaluation.
+- Manual selection/review is required. Full curved-page dewarping, automatic
+  cross-photo note joining, universal short-reference resolution and accepted
+  citation relationships remain limitations. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md)
+  for the workflow and how to use smaller areas for difficult pages.
+
+## Bibliography connections and repeated-work statistics
+
+- Bibliographies offers **Connections & citation stats**, a local snapshot of
+  saved EPUB, online and pasted/scanned citations. Work nodes include sources,
+  inferred library matches and external cited works. Ambiguous library matches
+  remain separate; missing-author external records stay source-specific. Exact
+  duplicate citation text within a source–target pair is counted once.
+- Native WPF graph shows directed arrows, title search, 1–5-step neighborhoods,
+  expansion of several branches together, shortest connection paths, zoom/fit,
+  and evidence/source-reader navigation. Arrows retain their citation direction
+  even when a path is traversed backwards. Initial views cap at 120 nodes and
+  expanded views at 160, with omission messages. Paths use the entire shared
+  network; statistics use the full corpus. Retained cross edges are drawn among
+  visible works.
+- Repeatedly cited works lists distinct citing books and evidence passages with
+  sortable columns, title/author filtering, an option for repeated evidence from
+  one source, and navigation back into the graph. No ratings or ownership filter
+  applies; excluded records remain out of scope. Graph exploration does not save
+  book changes or accepted citation identities.
+- All 239 executable checks passed, covering chains, parallel branches, cycles,
+  self references, external work grouping, duplicates, distinct-source counts,
+  ambiguity, missing-author/text-only entries, display limits, empty paths and
+  read-only persisted snapshots. Release build passed with no warnings/errors.
+  The regular Windows launcher was published after the graph-fitting refinement.
+- An isolated TEST PROFILE verified expansion without removing branches, a
+  two-step highlighted chain, repeated-work rows including an external work,
+  navigation from statistics into the graph, evidence detail and opening the
+  correct source citation. A read-only normal-data evaluation built 35 sources,
+  5,508 work nodes and 5,491 connections in about 0.4 seconds, with 15 works cited
+  by multiple books. These are snapshot counts, not general accuracy benchmarks.
+- Identity grouping remains conservative and inference-based. Title/name/OCR
+  variants can split counts; parts such as Inferno and Paradiso remain distinct
+  from a parent work. Accepted identities, alias/part grouping, graph export and
+  external citation discovery remain later work. See [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md).
+
+## Shared graph selection correction
+
+- Clicking a shared work in the left list immediately focuses, redraws and fits
+  the graph and updates details. Steps changes also update immediately; the
+  initial neighborhood is two steps. Graph-node selection retains expanded
+  branches. An explicit **Trace from current focus** option preserves path tracing
+  when choosing another shared work in the left list.
+- Visualization now projects the full citation graph onto multiply cited works
+  and their upstream source books. One-source leaves and isolated single-source
+  components are excluded, while singly cited source books can bridge deep
+  chains. Search lists shared works only. Full-corpus statistics still support
+  repeated evidence within one source; those rows cannot open a graph.
+- Synthetic checks cover leaf removal, parallel branches, preservation of deep
+  bridges, repeated evidence from only one source, and cycle-safe projection.
+  All 242 checks passed and Release build passed without warnings/errors. An
+  isolated TEST PROFILE verified one-click focus/redraw, shared-only search,
+  explicit trace selection, and disabled graph exploration for a single-source
+  statistics row. Arrow routing was visually verified to curve around an
+  intervening node card, avoiding the appearance of a false connection.
+  The regular Windows launcher was published with these corrections.
+  Existing identity and evidence limitations continue to apply.
+
+### Whole-library search restored (November 25, 2026)
+
+- My Books has an always-visible title/author/ISBN search with Entire library as
+  its default scope. Nonempty global searches bypass status, shelf, group, and
+  missing-cover filters; excluded records still follow their explicit checkbox.
+  Current filters retains the selected range. Blank search resumes normal
+  filtering. Queries search before the first-50 limit and never require Show all.
+- Synthetic coverage checks a match outside the selected status/shelf/group and
+  beyond the initial 50. An isolated TEST PROFILE UI check found title 1800 in a
+  2,000-book fixture through its author while To read remained selected; Current
+  filters correctly returned no match. The complete 255-check suite and Release
+  build passed. See [library browsing](LIBRARY-BROWSING.md) for usage.
+
+### Citation attribution, dates, and graph membership (November 25, 2026)
+
+- Graph labels state source bibliography → listed work and separate incoming and
+  outgoing links. Green/blue/amber node colors and badges distinguish library
+  membership and unresolved matches independently of ownership.
+- Added per-evidence attribution review from graph evidence and saved structured
+  readers: original text, editorial/introduction/translator material, further
+  reading, or unreviewed; optional contributor, source edition year, cited original
+  year, and cited edition year. Chronology warnings qualify unknown originals and
+  later printed years rather than deleting references. Section inference remains
+  a suggestion. The original-text-only scope requires a manual original-text
+  review and no detected date warning, applying to graph and statistics.
+- Separate revision-bound metadata uses optimistic stale-review checks, atomic
+  replacement with audit rollback, book timestamps/history, and profile backup
+  coverage. Changed sources do not inherit old reviews. No personal bibliography
+  was rewritten. Evidence deduplication preserves distinct attribution contexts
+  while counting a citing source once. See the
+  [bibliography guide](BIBLIOGRAPHIES.md#review-attribution-and-publication-dates).
+- All 255 checks passed, covering chronology, editorial context, persistence and
+  history, stale reviews/source revisions, backup/restore, scope filtering, and
+  evidence deduplication. Release build passed without warnings/errors and the
+  local Windows package was rebuilt. An isolated TEST PROFILE UI verified blue
+  external/green library nodes, explicit direction, a 1999-vs-1790 warning, saving
+  a 2005 editorial review, and clearing the original-only graph. A contradictory
+  unreviewed label found during verification was fixed before the final build.
+- Attribution remains manual and identities remain inferred. No conflict with
+  known dates does not establish correctness when dates are absent. Automatic
+  auditing, external bibliography discovery, and accepted identity reconciliation
+  remain future work.
+
+### Automatic bibliography photo batches (November 25, 2026)
+
+- Selecting photos now starts the whole batch immediately, without per-photo
+  corner selection or Accept page steps. Preview OCR compares four reading
+  orientations after EXIF correction. Line-envelope grouping detects substantial
+  text columns/pages, excludes narrow facing-page fragments, estimates drifting
+  text boundaries with margin, and scans each straightened area at full resolution.
+  Two substantial pages scan separately in left-to-right order; uncertain layouts
+  fall back to whole-photo recognition with a notice rather than stopping the batch.
+- The optional Adjust photo areas action retains the manual four-corner workflow
+  for retries. Both paths remain cancellable, append successes to the draft,
+  preserve failures by filename/area in the status, and require one final save.
+  The automatic path retains source filename/hash, selected rotation, detected
+  areas and preview geometry alongside original images, prepared areas, final raw
+  OCR words, and warnings. Existing saved evidence remains readable.
+- All 259 executable checks passed, including page/fragment separation, two-page
+  ordering, perspective drift/margins, uncertain-layout fallback, and new evidence
+  field round trips. Release build passed without warnings/errors. Read-only
+  sample evaluation covered IMG_2792, IMG_2793, IMG_2794, IMG_2815 and IMG_2829 in
+  the supplied photo folder. All produced a main text area automatically, with
+  facing-page scraps excluded where detected. A sideways copy of IMG_2792 was
+  recovered with the opposite quarter-turn. Diagnostic images/text stayed in
+  ignored .local/. This is a sample evaluation, not a transcription accuracy score.
+- An isolated TEST PROFILE verified selecting two photos → automatic batch OCR →
+  combined draft → Save bibliography, without a range-selection screen. Original,
+  area, layout JSON and OCR JSON evidence were retained in that test profile.
+  README, design and bibliography usage guide now describe the automatic default
+  and optional correction workflow.
+  The local Windows package was successfully rebuilt after the running app was
+  closed to release its locked files.
+- Detection remains heuristic and recognition uses installed Windows OCR
+  languages. Blur, severe curvature, sparse or unusual layouts can need optional
+  manual correction. Hidden text cannot be restored. Automatic orientation adds
+  processing time per photo; no downloaded model, cloud service or new dependency
+  was introduced. Existing saved personal bibliographies were not reprocessed.
+
+### Citation interpretation and canonical work review (November 25, 2026)
+
+- Added a Core interpretation layer between raw source evidence and My Books
+  matching. Supported mixed notes split into individual full publication references;
+  translation/discussion cues no longer become authors or composite titles. Printed
+  note numbers, individual reference wording, locators, volumes, edition years and
+  translation contributors remain separate from the full preserved note.
+- Short author/title references resolve against a unique earlier full reference
+  within the same section. Ibid requires one identified reference in the immediately
+  preceding numbered note. Missing numbers, ambiguous notes/editions, chapter
+  changes and numbering resets leave references unresolved. Repeated editions do
+  not supply an arbitrary edition year. Unsupported blocks remain in a review queue.
+- Deterministic work keys are independent of My Books, tolerate spacing/case/
+  punctuation and normal/inverted contributor order, and keep different full
+  contributor names separate. Work identity review corrects canonical fields,
+  explicitly merges aliases across bibliographies, or excludes false interpretations
+  without rewriting evidence or adding library books. Reviewed IDs survive display
+  corrections; unresolved passage decisions use source-revision evidence fingerprints.
+- Shared profile identity metadata uses optimistic conflicts and source checks,
+  atomic file replacement with audit rollback, source-book history/timestamps and
+  backup/restore coverage. Exact legacy attribution reviews and older citation
+  recommendation preference keys remain usable when evidence still matches.
+- Graphs, cited-library lists and citation recommendations consume processed
+  evidence and exclude unresolved interpretations. Distinct citing-book counts
+  remain distinct from evidence passages. Parsed reference/note contexts preserve
+  multiple occurrences without counting whole-note rows as extra work citations.
+- Added Bibliographies → Review processed citations, interpretation status/reasons,
+  note/locator/edition details, unresolved filtering and optional complete-note rows.
+  Review work identity can use a possible library record's title/author, merge into
+  an existing reviewed identity, or exclude an interpretation. Reader/graph views
+  refresh after a review; other open snapshots refresh when reopened.
+- Synthetic checks cover mixed references, inverted names, contributor/volume/
+  locator fields, ambiguous short titles and Ibid, missing notes, chapter resets,
+  multiple editions, spacing variants, aliases/merges, excluded interpretations,
+  stale source/review rejection, legacy compatibility and backup restoration.
+  All 279 checks passed; Release build passed without warnings/errors and the
+  local Windows package was rebuilt. An isolated TEST PROFILE verified the source
+  picker, interpretation details, unresolved queue, choosing an existing reviewed
+  identity and saving, with the unresolved count immediately decreasing. UI review
+  also led to clearer reviewed/inferred wording and optional full-note rows.
+- Read-only evaluation of the user's example, with and without simulated library
+  records, independently identified Klauck, Schneemelcher, Meyer and Ehrman,
+  resolved the explicit Schneemelcher short title, and retained uncertain short
+  references/missing-note Ibid cases without graph edges. Personal source documents
+  were not rewritten. Diagnostics/test profiles stayed in ignored .local/.
+- Added [CITATION-PROCESSING.md](CITATION-PROCESSING.md) and updated README,
+  bibliography, design and history guides. This remains a conservative pattern
+  interpreter, not a universal style parser. Generic spelling repair, manuscript/
+  biblical passage identities, comprehensive author-date support, automatic
+  cross-source short-form resolution, and one-click unmerge remain follow-ups.
+
+### Combined EPUB bibliography headings (November 25, 2026)
+
+- Fixed recognition of combined Bibliography and Recommended/Suggested/Further
+  Reading headings, including embedded line breaks. Existing structural checks
+  still exclude table-of-contents links and navigation. Publication/reprint years
+  immediately before italicized titles no longer contaminate the author field.
+- Failure wording now states that automatic extraction failed rather than implying
+  the book has no bibliography. Re-analysis and explicit preview/save remain the
+  update workflow; no saved personal source was automatically replaced.
+- Read-only inspection of Bearing False Witness found its dedicated section under
+  Bibliography and Recommended Reading in text/part0018.html. The fixed reader
+  extracted 421 entries with zero unreadable documents from that EPUB. Synthetic
+  regression checks cover the combined line-break heading, navigation exclusion,
+  publication/reprint author cleanup and intact evidence. All 289 checks passed
+  and the Release build passed without warnings/errors.
+- README, design and [bibliography usage](BIBLIOGRAPHIES.md) explain re-analysis
+  and extraction limitations. Other unsupported publisher layouts remain possible.
+
+### Citation-based Discovery tab (November 25, 2026)
+
+- Added Discovery to top navigation. Shared reading leads finds work targets
+  listed by at least two distinct saved source books, including unrated sources.
+  Ranking prioritizes the count of finished four/five-star sources, then total
+  citing-source count. Repeated notes from one source cannot manufacture a bridge.
+- Optional source selection requires every selected source. Title/author search
+  and filters apply before a first-50 table limit, with Show all leads available.
+  Default reading leads omit completed/other-status local targets; an exploration
+  toggle includes them while preserving dismissals, snoozes and exclusions.
+- Selected leads show library membership, source evidence/attribution labels,
+  why they appear, My Books/find-add actions and shared recommendation preferences.
+  Explore shared connections opens the graph focused on that work and carries
+  the attribution scope. Original-only scope is available for both Discovery views.
+- Moved Cited by books you enjoyed from Recommendations into Discovery's second
+  view, retaining its existing finished/high-rated-source and preference behavior.
+  Recommendations retains To read and owned-unread sections. Shared-lead ranking
+  and preference snapshots load in the background; filtering uses cached ranked
+  arrays and one citation-settings namespace query. Refresh reloads library state,
+  citations and preferences. No books are added merely by viewing Discovery.
+- All 289 checks passed, including unrated sources, enjoyed-source ranking,
+  distinct counts, all-selected-source intersections, unresolved interpretations,
+  library matches, status/dismissal/snooze/exclusion handling and preference scope.
+  Release build passed without warnings/errors and the local Windows package
+  was rebuilt with both Discovery and the EPUB detection fix.
+- An isolated TEST PROFILE verified navigation, shared leads and membership,
+  selecting two required sources, graph opening at the selected work, the moved
+  enjoyed-books suggestions, and their absence from Recommendations. Read-only
+  evaluation of saved personal evidence found Paul and the Faithfulness of God
+  shared by Dominion and The Case for Jesus, outside My Books, as requested.
+  No personal bibliographies or reading records were rewritten for the evaluation.
+- Added [DISCOVERY.md](DISCOVERY.md) with practical steps, ranking and preferences;
+  updated README, design and bibliography links. Discovery depends on saved,
+  identified evidence and can miss unresolved/OCR/name variants until reviewed.
+  It does not fetch missing bibliographies or treat indirect paths as direct
+  citations. General catalog discovery and broader recommendation modeling remain
+  future work; no large-library performance benchmark is claimed.
+
+### Full saved-library EPUB rerun (November 26, 2026)
+
+- Reran the current EPUB bibliography reader across all 759 library records:
+  207 available unique EPUBs, including retained manual imports, were scanned;
+  552 records had no available linked EPUB. This was an explicitly authorized
+  personal-library operation, not an automatic import or a change to app behavior.
+- Created and verified a complete pre-rerun profile backup before saving. Applied
+  two newly recovered bibliographies (919 entries combined) and 16 updates to
+  existing bibliographies (40 additional entries plus extraction metadata changes).
+  All 18 saves passed verification and recorded bibliography change history.
+  The profile now contains 37 saved EPUB bibliographies and 9,698 entries.
+  These are citation entries, not a count of distinct or verified works.
+- Replacement required the same source EPUB hash and preservation of every old
+  citation's text, archive member and anchor. Four previously saved special-layout
+  extractions were not reproduced; another returned only two entries instead of
+  105 because its bibliography is image-based. All five were left intact. All 19
+  untouched saved EPUB bibliography files passed byte-for-byte hash checks.
+  Remaining unsupported formats include leaf blockquotes, split-document lists,
+  additional reading/resource headings and image-only bibliographies. One scanned
+  EPUB reported two unreadable content documents; extraction is not comprehensive.
+- Verified that all book fields except the intended update timestamps remained
+  unchanged and that 167 existing non-EPUB evidence/source/review files remained
+  byte-for-byte unchanged. Rebuilt graph evaluation found 36 works cited by more
+  than one source and 34 Discovery leads; these remain inferred from saved evidence.
+- Private per-book scan/apply reports and verification results remain in ignored
+  `.local/epub-rerun/`; source copies and the verified backup remain in the personal
+  profile. None are included in Git. Open Bibliographies to inspect the saved
+  results, or refresh Discovery if it was already open during the rerun. The
+  normal per-book reanalysis workflow remains documented in
+  [BIBLIOGRAPHIES.md](BIBLIOGRAPHIES.md); no batch-scan UI was added.
+- Validation: all 289 executable checks passed using isolated synthetic profiles;
+  the Release build passed with zero warnings/errors. No application code,
+  packaging or launch behavior changed, so no new package was required.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
@@ -583,8 +1052,8 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   remain planned. Calibre custom column mapping remains deferred.
 - Description and review interpretation, embeddings, and broader catalog
   discovery remain later recommendation work. Direct PDF extraction, automatic
-  external Markdown watching, visual browsing modes beyond the list and cover
-  grid, citation graph, and Anki integration remain later stages.
+  external Markdown watching, visual browsing modes beyond the table and cover
+  grid, broader citation identifiers/part grouping, and Anki integration remain later stages.
 - Initial backups contain complete profile copies. The retention policy keeps 14
   daily and 4 weekly archives; manual/pre-restore archives are retained. Large-source
   deduplication is deferred until document import makes it useful.

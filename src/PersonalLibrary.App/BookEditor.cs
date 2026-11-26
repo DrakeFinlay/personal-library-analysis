@@ -13,10 +13,11 @@ internal sealed class BookEditor : Window
 {
     private readonly LibraryStore store;
     private readonly Book book;
-    private readonly TextBox title, author, year, shelves, rating, review, notes, bibliography;
+    private readonly TextBox title, author, year, shelves, groups, rating, review, notes, bibliography;
     private readonly TextBox editionLabel, isbn, publisher, language, editionYear, pages;
     private readonly TextBox msrp;
-    private readonly CheckBox physical, ebook, audio, readNext, excluded;
+    private readonly TextBox toReadPosition, dateAdded;
+    private readonly CheckBox physical, ebook, audio, excluded;
     private readonly ComboBox editionPicker;
     private readonly ComboBox msrpCurrency;
     private readonly StackPanel copyFields = new();
@@ -50,6 +51,7 @@ internal sealed class BookEditor : Window
         var bottom = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
         bottom.Children.Add(Ui.Button("Save & close", () => { SaveAll(); allowClose = true; Close(); }, true));
         bottom.Children.Add(Ui.Button("Cancel / close", Close)); DockPanel.SetDock(bottom, Dock.Bottom); root.Children.Add(bottom);
+        bottom.Children.Add(Ui.Button("Change history", () => new BookChangesWindow(store, book) { Owner = this }.ShowDialog()));
         var tabs = new TabControl(); root.Children.Add(tabs); Content = root;
         var metadata = new StackPanel { Margin = new Thickness(10) };
         var download = Ui.Button("Find metadata or a cover…", DownloadMetadata);
@@ -59,7 +61,11 @@ internal sealed class BookEditor : Window
         year = Ui.Input(metadata, "Original publication year (negative for BCE; blank if unknown)", book.OriginalYear?.ToString() ?? "");
         shelves = Ui.Input(metadata, "Shelves (comma separated)", string.Join(", ", book.Shelves));
         ShelfSuggestions.Attach(shelves, store.Books().SelectMany(savedBook => savedBook.Shelves));
-        readNext = Check(metadata, "Add to Read next", book.ReadNext);
+        groups = Ui.Input(metadata, "To-read groups (comma separated)", string.Join(", ", book.ToReadGroups));
+        ShelfSuggestions.Attach(groups, store.LibraryNames(groups: true));
+        groups.ToolTip = "Create your own groups, for example Research for a book. A book can belong to several groups. Clear this field to remove all its groups.";
+        toReadPosition = Ui.Input(metadata, "To-read position (1 or higher; blank if unknown)", book.ToReadPosition?.ToString() ?? "");
+        dateAdded = Ui.Input(metadata, "Date added to library (YYYY-MM-DD; blank if unknown)", book.DateAdded?.ToString("yyyy-MM-dd") ?? "");
         excluded = Check(metadata, "Excluded content (manga/comics or outside this library's scope)", book.Excluded);
         metadata.Children.Add(Ui.Heading("Editions & ownership", 23));
         editionPicker = new ComboBox { DisplayMemberPath = "Label", ItemsSource = book.Editions, SelectedItem = editingEdition };
@@ -163,19 +169,15 @@ internal sealed class BookEditor : Window
             if (new PublicBibliographyWindow(store, source) { Owner = this }.ShowDialog() == true)
                 online.IsEnabled = true;
         }));
-        if (book.Calibre is { } epubSource && epubSource.Metadata.Files.FirstOrDefault(file => file.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase)) is { } epubFile)
+        citationActions.Children.Add(Ui.Button("Import bibliography from EPUB…", () =>
         {
-            citationActions.Children.Add(Ui.Button("Extract bibliography from EPUB", () =>
+            if (new EpubBibliographyImportWindow(store, book, EpubBibliographyImportWindow.LinkedEpub(book)) { Owner = this }.ShowDialog() == true)
             {
-                var path = CalibreImporter.ResolvePath(epubSource.LibraryFolder, epubFile.RelativePath);
-                if (!File.Exists(path)) throw new IOException("The EPUB is unavailable. Refresh the Calibre connection.");
-                var citations = EpubBibliographyReader.Read(path!);
-                store.SaveEpubBibliography(book.Id, citations);
-                savedCitations = citations;
-                browse.IsEnabled = true;
+                savedCitations = store.ReadEpubBibliography(book.Id);
+                browse.IsEnabled = savedCitations != null;
                 RenderExtracted();
-            }));
-        }
+            }
+        }));
         references.Children.Add(citationActions);
         references.Children.Add(extracted);
         RenderExtracted();
@@ -569,8 +571,13 @@ internal sealed class BookEditor : Window
     {
         CaptureEdition(); book.Title = title.Text; book.Author = author.Text; book.OriginalYear = OptionalInt(year.Text, "Original year");
         book.Shelves = shelves.Text.Split(',').ToList(); book.Rating = OptionalInt(rating.Text, "Rating");
+        book.ToReadGroups = groups.Text.Split(',').ToList();
+        var position = OptionalInt(toReadPosition.Text, "To-read position");
+        var added = OptionalDate(dateAdded.Text);
+        if (position != book.ToReadPosition) book.ToReadPositionIsLocal = true;
+        if (added != book.DateAdded) book.DateAddedIsLocal = true;
+        book.ToReadPosition = position; book.DateAdded = added;
         book.Review = review.Text; book.Notes = notes.Text; book.Excluded = excluded.IsChecked == true;
-        book.ReadNext = readNext.IsChecked == true && book.Status == ReadingStatus.ToRead;
         foreach (var (id, start, finish) in readingDates)
         {
             var reading = book.Readings.Single(r => r.Id == id);
@@ -599,7 +606,7 @@ internal sealed class BookEditor : Window
         SaveAll();
         book.Readings = candidate.Readings; book.Status = candidate.Status; book.ReadNext = candidate.ReadNext;
         book.ToReadAddedAt = candidate.ToReadAddedAt;
-        store.Save(book); readNext.IsChecked = book.ReadNext; RenderReading(); changed = false;
+        store.Save(book); RenderReading(); changed = false;
     }
 
     private void RenderReading()

@@ -49,8 +49,8 @@ Anki writes or integration are included in the initial releases.
 
 ## 3. Screens and everyday use
 
-Primary navigation: **Home, My Books, Recommendations, Bibliographies, Statistics,
-Settings**. Later screens may be present only once their functionality is useful.
+Primary navigation: **Home, My Books, Recommendations, Discovery, Bibliographies, Statistics,
+Goals, Settings**. Later screens may be present only once their functionality is useful.
 
 ### Home
 
@@ -65,28 +65,73 @@ custom sections are in use. Move books from their cards and reorder them within
 each section. Section membership is a personal preference on the book and
 persists across rereads. Removing a section returns its books to Other books.
 
-Smaller sections contain:
+The sidebar shows **Recently changed books**: the ten most recently saved books
+across reading statuses, excluding out-of-scope records. Reading updates, edits,
+imports, and batch saves count as changes. Cards open the book editor.
+Currently-reading books retain manual order. The Read next interface is retired.
 
-- Annual book challenge: goal, completed count, and progress.
-- Read next: a deliberately maintained short queue with cover thumbnails.
-- Recently added to to-read: cover thumbnails for the last ten books added to that shelf, newest first.
+### Discovery
 
-Proposed defaults: allow manual order for currently-reading and read-next books;
-starting a queued book removes it from read next. The recent-to-read section uses
-shelf-addition time, not catalog-creation time, and omits books now read, currently
-reading, or excluded. Imported entries without a reliable shelf-addition date use
-their available Goodreads date-added value with its provenance, falling back to
-import time; do not present that fallback as a historical fact.
+Discovery houses Shared reading leads and the former Cited by books you enjoyed
+recommendation section. Shared leads require at least two distinct saved source
+books; repeated notes in one book do not count as multiple sources. All rated and
+unrated bibliography sources can contribute. Rank by finished four/five-star source
+count, then total citing-source count. Optional source selection requires every
+selected source, not any one of them. Search/filtering precedes a first-50 display
+limit. Library membership, source evidence and attribution stay visible; the graph
+opens focused on the selected shared work. My Books/add-book actions are explicit.
+
+Default next-reading leads omit completed/other-status local targets. A toggle
+includes them for research while preserving dismissals/snoozes/exclusions. Both
+Discovery views support all-reference or reviewed-original-only scope. Unresolved
+interpretations cannot create leads; identities remain reviewable. Reading-list
+recommendations remain under Recommendations. Discovery loads its corpus and
+ranking asynchronously and reads citation preferences in a single namespace query.
+
+### Goals
+
+Goals is available in the top navigation. Its primary feature is a yearly list
+of specific titles the reader chooses from My Books. Each title can occur once
+per year and can be planned in multiple years. A completed reading in the selected
+year marks that title complete once, including a reread or year-only completion.
+Undated history does not count. Removing a title from a year preserves its book
+and reading history. Imported updates preserve plans; merges combine both books'
+planned years. Excluded books are hidden and special collections do not count as
+completed reads. Add missing titles through the regular add-book workflow first.
+
+The existing optional numeric annual reading challenge lives below the title
+list, with its target editor, rather than on Home or in Settings. It counts all
+eligible completed readings, independently of the title list.
 
 ### My Books and book details
 
-Stage A includes a list with cover thumbnails and a grid with larger covers.
-Both views share search, visible reading-status toggles, a separate shelf filter,
-and access to the book editor. Clicking a cover in bulk edit toggles its selection.
+My Books defaults to To read in a compact text table, with optional Covers.
+Reading statuses appear on the far left, with separate shelf and to-read group
+filters above the results. All is available for each filter. The table loads the
+first 50 matching records; Show all books deliberately expands the filtered range.
+Queries apply filters and sorting to the full library before limiting records.
+The table virtualizes rows and loads no cover images. A visible title/author/ISBN
+search defaults to Entire library. A nonempty global query bypasses status,
+shelf, group, and missing-cover filters while retaining the excluded-records
+choice and result limit. Current filters searches within the chosen range;
+clearing the query resumes filtered browsing. Clicking a cover in bulk edit toggles its selection.
 My Books keeps the current search, filters, selections, and scroll position when
 the book editor closes. Refresh library reloads the saved records in that view.
-Show the selected edition's cover where available and a placeholder otherwise.
-A sortable table and Cover Flow are later work.
+The table defaults to numeric To-read position ascending, with a reversible
+direction control. Unknown positions sort last in both directions. Position,
+Date added, Title, and Author headers are sortable. Date added is an optional
+library-addition date independent of the last-change timestamp and shelf changes.
+Both fields are editable. Local corrections survive future imports. Goodreads
+supplies the canonical to-read shelf's position and its Date Added field;
+unrelated shelf positions are not global priority ranks. Recovery from saved
+source fields fills missing values only after a verified backup and records the
+changes. The table opens rows with a double-click or Enter.
+Covers show available selected-edition images and placeholders. Cover Flow is later work.
+
+User-named to-read groups overlap independently of shelves. The editor saves
+comma-separated memberships and bulk edit can add a group to selected books.
+Memberships survive status changes, imports, and merges. Select all shown targets
+loaded rows; users must request Show all books to include a larger filtered set.
 
 My Books saves the requested books per cover row and title and detail font sizes.
 Narrow windows use fewer columns to keep cards usable. Bulk selection supports
@@ -114,6 +159,14 @@ a bibliography keeps the list's scroll position. Add Bibliography attaches
 pasted text or text recovered from page photos to a source book in My Books.
 Review and edit the text before saving it as Markdown. A successful parser or
 online match is never a prerequisite for saving.
+
+Import bibliography photos is available directly on Bibliographies. Offline
+Windows OCR supports multiple pages in filename order, cancellation, editable
+review, and a preview of identifiable citations and local matches before saving.
+Unrecognized text and original images are retained. Cited books in My Books
+combines possible matches across EPUB, online, and pasted/scanned bibliographies,
+deduplicates library works, and links each to its source evidence. All reading
+statuses and ownership states are eligible; excluded records are omitted.
 
 ### Settings
 
@@ -173,6 +226,14 @@ in the specialized collections can follow later.
 Each reading/rereading has its own optional start and finish dates, outcome,
 edition, and progress entries. Work-level status summarizes the current state
 without overwriting past readings. A reread creates a new reading record.
+
+Every saved book change retains a timestamp and before/after snapshots in a
+separate SQLite history table, accessible through Change history in the editor.
+This covers metadata, classification, reading/progress/reread actions, imports,
+merges, removals, and bibliography saves. Unchanged saves create no event.
+Existing profiles begin at an explicitly labelled current-state baseline after
+a verified migration backup; historical edits are not fabricated. History is
+included in profile backups and stays out of normal paged browsing queries.
 
 Books read before Goodreads may be marked read with unknown dates. The
 `read-b4-goodreads` shelf is a migration input: transfer its books into the broader
@@ -396,6 +457,43 @@ Removing a Personal Library record suppresses its source ID during later refresh
 
 ## 8. Bibliography documents and citation relationships
 
+Citation interpretation is a distinct Core layer before library matching. It
+preserves source blocks and produces reference-specific work identities, printed
+note numbers, locators, volume/edition/contributor fields and resolution reasons.
+Supported mixed full references are separated. Short forms resolve against a
+unique earlier section reference; Ibid requires an unambiguous immediately prior
+numbered note. Missing notes, numbering resets and chapter boundaries prevent
+guessed links. Unresolved interpretations remain reviewable and do not create
+graph edges, cited-library entries or recommendation evidence.
+
+Inferred work keys exist independently of My Books; normalized spacing is tolerated
+without rewriting raw OCR. Reviewed canonical identities and explicit alias merges
+live separately in profile metadata, with stable reviewed IDs, optimistic conflict
+checks, source evidence checks, source-book history and backup coverage. Review can
+exclude an interpretation while retaining its evidence. No automatic library book
+creation occurs. Identity and original-author attribution remain separate decisions.
+
+Graph nodes use green for In My Books, blue for absent works, and amber for
+ambiguous library matches, with a legend and text badges. Each arrow runs from
+source bibliography to listed work, with incoming/outgoing details stating this.
+Library membership and original-author attribution are independent.
+
+Each evidence passage can be reviewed as original text, editorial/introduction/
+translator material, further reading, or unreviewed, with an optional responsible
+contributor. Source original year, source edition year, cited original year, and
+cited edition/reference year stay separate. Chronology compares original works
+for original-text evidence and the supplied source edition for editorial material.
+A later printed year with an unknown cited original triggers a qualified warning,
+not automatic deletion. Unknown dates remain unknown. Section inference does not
+count as manual review. All-reference scope preserves evidence; original-text-only
+scope requires manual original-text review without a known date warning and
+applies to graph and statistics alike.
+
+Reviews are separate metadata bound to evidence and source revision hashes.
+Saving updates book timestamps/history; backups include metadata. Replaced sources
+do not inherit old reviews just because wording matches. Existing personal
+references are not automatically rewritten or approved. Identities remain inferred.
+
 Each bibliography belongs to a source work and optionally its particular edition.
 Keep three layers: original supplied evidence, editable Markdown, and structured
 references/matches. Plain-text paste has no external source file; retain its
@@ -425,11 +523,34 @@ exist outside My Books. Store evidence, source edition, reference location,
 provider, match status, and retrieval/import dates. Preserve parallel evidence
 without displaying duplicate logical connections.
 
-The EPUB prototype extracts dedicated bibliography sections and preserves original
+EPUB import is available from Bibliographies and the source book editor, with a
+file chooser independent of Calibre. Analyze locally, preview citation text and
+possible library matches, then explicitly save after a verified profile backup.
+Retain the original EPUB by hash and record replacements in book change history;
+reject stale previews if the file or current EPUB bibliography changed. Personal
+Markdown and online bibliographies remain separate.
+
+The EPUB reader recognizes dedicated and combined bibliography/recommended,
+suggested or further-reading headings, including line breaks. Publication/reprint
+years before an italicized title are separate from author names. Failure to
+extract a section is not a claim that the EPUB contains no bibliography.
+The reader extracts bibliography sections and preserves original
 citation text, grouping, and source location in a separate local record. A searchable
 browser offers possible matches by title and author. It was evaluated against the
-complete Dominion bibliography. Image OCR uses the installed Windows recognizer
-offline. Text-PDF extraction, scanned-PDF OCR, manual section selection, and
+complete Dominion bibliography. Photo OCR uses the installed Windows recognizer
+offline with automatic orientation comparison and text-column/page detection.
+Choosing a photo batch starts scanning without per-photo approval. Substantial
+pages are straightened separately, narrow facing-page fragments are excluded,
+and uncertain boundaries fall back to whole-photo recognition with a notice.
+Optional Adjust photo areas retains manual four-corner selection and illumination
+controls for retries. Automatic areas use perspective correction and illumination
+normalization. Tall areas use overlapping recognition
+bands. Reconstruct paragraphs and numbered notes, preserving complete mixed notes
+alongside candidate publication references and possible library matches. Retain
+the original photo, prepared area, crop coordinates, rotation/layout evidence and
+raw OCR geometry on save. All detection/recognition stays offline and cancellable.
+Warn about possible missing note numbers; never fill in missing evidence.
+Text-PDF extraction, scanned-PDF OCR, manual EPUB section selection, and
 accepted citation edges remain later work.
 
 For books without a local file, offer a user-initiated search of Internet
@@ -439,8 +560,21 @@ hash. Preserve local EPUB citations and editable Markdown alongside it.
 
 External incoming discovery may use OpenAlex/OpenCitations/Crossref after measuring
 coverage. An empty result means no known indexed result, not no citations. A
-citation is a relationship, not evidence of endorsement. Interactive network
-visualization is an important later deliverable; relational linked lists come first.
+citation is a relationship, not evidence of endorsement. A local interactive
+network now visualizes inferred citation connections from saved bibliographies,
+including cited works outside My Books. Traverse incoming/outgoing neighborhoods,
+expand multiple branches, highlight shortest undirected connection paths while
+retaining each edge's citation direction, and inspect original evidence.
+Selecting a shared work in the left list must immediately focus and redraw the
+network. Hide single-source leaf citations while retaining upstream source books
+as bridges to shared works; visualizations require shared citation evidence.
+Statistics remain based on the full corpus. Use an explicit trace-selection mode
+to choose a path endpoint without replacing the focused work.
+Display limits must not truncate corpus-wide statistics. Count distinct citing
+source books separately from deduplicated evidence passages. Ambiguous identities
+must not create false bridges, and text-only unresolved notes must not invent
+works. Accepted/manual identity relationships, part/parent grouping and graph
+export remain later work.
 
 ## 9. Recommendations
 
@@ -458,7 +592,7 @@ excluded books. Currently reading, DNF, partially
 read, and reference-only books are outside these candidate groups. Per-shelf
 recommendations and discovery from the offline reference catalog follow later.
 
-**Cited by books you enjoyed** surfaces up to ten possible book references from
+Under **Discovery**, **Cited by books you enjoyed** surfaces up to ten possible book references from
 completed works rated four or five stars. It groups repeat citations and favors
 references from multiple highly rated sources. Picks link to their evidence
 and can include works outside My Books, which the reader can look up or add.
@@ -593,8 +727,8 @@ multi-computer SQLite synchronization is promised.
 Deliver normal Windows launch, isolated synthetic profile, light/dark themes,
 library search, list and cover views, and book/edition editing, ownership, flat shelves,
 reading/rereading records, page/percentage updates, whole-star ratings, reviews
-and private notes. Include the reading-focused Home, read-next queue, recent ten
-to-read additions, annual challenge, pasted Markdown bibliographies, and backup/
+and private notes. Include the reading-focused Home, recently changed books,
+yearly title lists and annual challenge in Goals, pasted Markdown bibliographies, and backup/
 restore. Show covers in the Home sidebar and My Books. Book covers and page counts
 can be set manually. Show a placeholder for books without a cover.
 
@@ -638,10 +772,12 @@ the initial shortlists are useful.
 Sortable/bulk-editable table and keyboard/mouse Cover
 Flow; ebook-derived word counts, more statistics and richer classification driven by use; EPUB/PDF/image
 bibliography extraction and OCR; external Markdown change recognition; external
-incoming-citation discovery; interactive citation graph; optional larger offline
+incoming-citation discovery; accepted citation identities and graph export; optional larger offline
 catalog; later Anki vocabulary workflow. These are planned follow-ups, not silent
 requirements for the first runnable release. Sequence them according to user
-feedback; the citation graph remains an explicit later goal.
+feedback. The local inferred citation graph, sortable table, EPUB import and photo
+OCR have since been implemented; broader identity reconciliation and research
+integrations remain follow-ups.
 
 ## 13. Verification and delivery practices
 

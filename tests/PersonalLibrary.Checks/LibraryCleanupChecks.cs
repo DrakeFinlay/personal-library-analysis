@@ -63,7 +63,7 @@ internal static class LibraryCleanupChecks
         var keep = books.Single(book => book.Id == first.Id);
         var duplicate = books.Single(book => book.Id == second.Id);
         store.SaveBibliography(keep.Id, "Saved bibliography", null);
-        store.MergeBooks(keep, duplicate);
+        store.MergeBooks(store.FindBook(keep.Id)!, store.FindBook(duplicate.Id)!);
         var combined = store.Books().Single();
         check(combined.Id == keep.Id && combined.Status == ReadingStatus.Read && combined.Readings.Single().EditionId == second.SelectedEdition.Id
             && combined.Editions.Count == 2 && combined.Calibre?.BookId == first.Calibre.BookId && combined.Goodreads?.BookId == second.Goodreads.BookId

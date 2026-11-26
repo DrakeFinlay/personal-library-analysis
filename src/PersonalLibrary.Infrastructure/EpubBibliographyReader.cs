@@ -12,7 +12,7 @@ public static class EpubBibliographyReader
 {
     private static readonly HashSet<string> BibliographyHeadings = new(
         ["bibliography", "selected bibliography", "select bibliography", "general bibliography", "annotated bibliography",
-            "references", "selected references", "works cited", "works consulted", "further reading", "recommended reading",
+            "references", "selected references", "works cited", "bibliography of works cited", "works consulted", "further reading", "recommended reading",
             "suggested reading", "bibliography and guide to further reading", "bibliography and further reading", "sources and further reading",
             "literaturverzeichnis", "bibliographie", "参考文献", "引用文献"], StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> BackMatterHeadings = new(
@@ -66,11 +66,12 @@ public static class EpubBibliographyReader
                     .TakeWhile(element => !IsBibliographyHeading(element) && !IsEndOfSection(heading, element));
                 var chapter = IsReferenceHeading(heading) ? Clean(section.Descendants().TakeWhile(element => element != heading)
                     .LastOrDefault(element => element.Name.LocalName == "h1")?.Value ?? "") : "";
-                ReadSection(blocks.ToArray(), member.FullName, chapter, entries, introductoryNotes);
+                var context = section.Descendants().TakeWhile(element => element != heading).LastOrDefault(IsHeading)?.Value ?? "";
+                ReadSection(blocks.ToArray(), member.FullName, chapter, entries, introductoryNotes, CitationProvenance.Infer(heading.Value + " " + context));
             }
         }
         if (entries.Count == 0)
-            throw new InvalidDataException("No dedicated bibliography was found in this EPUB. Its notes can still be added as Markdown.");
+            throw new InvalidDataException("No bibliography section could be extracted automatically from this EPUB. This does not establish that the book has no bibliography; its layout or section heading may be unsupported. Its notes can still be added as Markdown.");
         return new EpubBibliography(filename, hash, introductoryNotes.ToArray(), entries.ToArray(), unreadable);
     }
 
@@ -100,7 +101,7 @@ public static class EpubBibliographyReader
         }
     }
 
-    private static void ReadSection(XElement[] blocks, string archiveEntry, string chapter, List<EpubCitation> entries, List<string> notes)
+    private static void ReadSection(XElement[] blocks, string archiveEntry, string chapter, List<EpubCitation> entries, List<string> notes, CitationAttribution attribution)
     {
         var marked = blocks.Where(IsMarkedCitation).ToHashSet();
         var hasCitation = false;
@@ -126,19 +127,24 @@ public static class EpubBibliographyReader
             var title = emphasis == null ? "" : Clean(emphasis.Value);
             var author = emphasis == null ? "" : Clean(string.Concat(element.DescendantNodes()
                 .TakeWhile(node => node != emphasis).OfType<XText>().Select(node => node.Value))).TrimEnd(':', ',', '.', ' ');
-            entries.Add(new EpubCitation(entries.Count + 1, group, text, title, author, archiveEntry, (string?)element.Attribute("id")));
+            author = Regex.Replace(author, @"\s*[.,:]?\s*(?:\[(?:1[4-9]\d{2}|20\d{2})\]\s*)?(?:1[4-9]\d{2}|20\d{2})[a-z]?[.,: ]*$", "").TrimEnd(':', ',', '.', ' ');
+            entries.Add(new EpubCitation(entries.Count + 1, group, text, title, author, archiveEntry, (string?)element.Attribute("id"), attribution));
             hasCitation = true;
         }
     }
 
     private static bool IsBibliographyHeading(XElement element) =>
         (IsHeading(element) || element.Name.LocalName is "p" or "div" && !element.Descendants().Any(child => child.Name.LocalName is "p" or "div" or "li" || IsHeading(child))) &&
-        BibliographyHeadings.Contains(Clean(element.Value).TrimEnd(':', '.')) &&
+        IsBibliographyLabel(HeadingText(element)) &&
         !IsNavigationOrTable(element) && !element.Ancestors().Any(parent => parent.Name.LocalName == "li") &&
         !element.Descendants().Any(child => child.Name.LocalName == "a" && child.Attribute("href") is { } href &&
             Clean(child.Value).Length > 0 && !IsContentsLink(href.Value));
 
     private static bool IsReferenceHeading(XElement element) => Clean(element.Value).Equals("References", StringComparison.OrdinalIgnoreCase);
+
+    private static string HeadingText(XElement element) => Clean(string.Concat(element.DescendantNodes().Select(node => node is XText text ? text.Value : node is XElement { Name.LocalName: "br" } ? " " : "")));
+    private static bool IsBibliographyLabel(string text) => BibliographyHeadings.Contains(text.TrimEnd(':', '.')) ||
+        Regex.IsMatch(text.TrimEnd(':', '.'), @"^(?:(?:selected|select|general|annotated)\s+)?bibliography\s+(?:and|&)\s+(?:recommended|suggested|further)\s+reading$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static bool IsEndOfSection(XElement heading, XElement element)
     {

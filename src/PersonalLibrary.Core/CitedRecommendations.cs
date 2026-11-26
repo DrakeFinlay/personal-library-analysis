@@ -11,6 +11,7 @@ public sealed record CitedRecommendation(string Key, string Title, string Author
 
 public static partial class CitedRecommendations
 {
+    public static string LegacyPreferenceKey(EpubCitation citation) => TextKey(citation.Interpretation?.ExtractedTitle ?? citation.Title) + "|" + Surname(citation.Interpretation?.ExtractedAuthor ?? citation.Author);
     public static bool IsSource(Book book) => !book.Excluded && book.Rating is 4 or 5 && Recommendations.HasCompleted(book);
 
     public static IEnumerable<CitedRecommendation> Rank(IReadOnlyList<Book> library,
@@ -21,7 +22,8 @@ public static partial class CitedRecommendations
         var references = library.Where(IsSource).SelectMany(book => citations(book.Id)
             .Where(IsBookCitation).Select(citation => new CitationEvidence(book, citation)));
 
-        return references.GroupBy(evidence => TextKey(evidence.Citation.Title) + "|" + Surname(evidence.Citation.Author))
+        return references.GroupBy(evidence => evidence.Citation.Interpretation?.CanonicalWorkKey is { Length: > 0 } identity ? identity
+                : evidence.Citation.Interpretation?.WorkKey is { Length: > 0 } work ? work : TextKey(evidence.Citation.Title) + "|" + Surname(evidence.Citation.Author))
             .Select(group =>
             {
                 var sources = group.GroupBy(evidence => evidence.Source.Id).Select(evidence => evidence.First())
@@ -64,8 +66,9 @@ public static partial class CitedRecommendations
         }
     }
 
-    private static bool IsBookCitation(EpubCitation citation)
+    internal static bool IsBookCitation(EpubCitation citation)
     {
+        if (citation.Interpretation is { CanConnect: false }) return false;
         var title = citation.Title.Trim();
         var author = citation.Author.Trim();
         if (title.Length is < 2 or > 220 || author.Length is < 2 or > 90 ||

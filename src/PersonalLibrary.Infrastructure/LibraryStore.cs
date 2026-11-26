@@ -12,7 +12,7 @@ public sealed record BibliographyText(string Text, string? Hash);
 public sealed record BackupManifest(int Version, DateTimeOffset Created, Dictionary<string, string> Files);
 public sealed record BackupPreview(string Path, DateTimeOffset Created, int Books, int Files);
 
-public sealed class LibraryStore : IDisposable
+public sealed partial class LibraryStore : IDisposable
 {
     private const string ReadingSectionsKey = "reading-sections";
     private static readonly ReadingSection DailyReads = new(new Guid("452199dd-fd56-4fc0-a3d7-7008c0902c9d"), "Daily Reads");
@@ -38,18 +38,7 @@ public sealed class LibraryStore : IDisposable
         try
         {
             Directory.CreateDirectory(Profile);
-            using var connection = Open();
-            using var version = connection.CreateCommand();
-            version.CommandText = "PRAGMA user_version";
-            var current = Convert.ToInt32(version.ExecuteScalar());
-            if (current > 1) throw new InvalidOperationException("This profile was created by a newer app. Upgrade before opening it.");
-            using var create = connection.CreateCommand();
-            create.CommandText = """
-                CREATE TABLE IF NOT EXISTS books(id TEXT PRIMARY KEY, document TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                PRAGMA user_version=1;
-                """;
-            create.ExecuteNonQuery();
+            EnsureSchema();
             _ = Books();
         }
         catch { profileLock.Dispose(); throw; }
@@ -111,6 +100,20 @@ public sealed class LibraryStore : IDisposable
     }
 
     public void Save(Book book) => SaveBatch([book]);
+
+    public void PlanReading(Guid bookId, int year, bool include)
+    {
+        if (year is < 1 or > 9999) throw new InvalidOperationException("Enter a year from 1 to 9999.");
+        lock (gate)
+        {
+            var book = Books().Find(book => book.Id == bookId && !book.Excluded)
+                ?? throw new InvalidOperationException("This book is no longer available in My Books.");
+            if (book.PlannedReadingYears.Contains(year) == include) return;
+            if (include) book.PlannedReadingYears.Add(year);
+            else book.PlannedReadingYears.RemoveAll(value => value == year);
+            Save(book);
+        }
+    }
 
     public IReadOnlyList<ReadingSection> ReadingSections() =>
         JsonSerializer.Deserialize<ReadingSection[]>(Setting(ReadingSectionsKey, "null"), Json) ?? [DailyReads];
@@ -177,11 +180,24 @@ public sealed class LibraryStore : IDisposable
         var document = command.Parameters.Add("$document", SqliteType.Text);
         foreach (var book in books)
         {
-            book.UpdatedAt = DateTimeOffset.Now;
             book.Title = book.Title.Trim();
             book.Shelves = book.Shelves.Select(s => s.Trim()).Where(s => s.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            book.ToReadGroups = book.ToReadGroups.Select(group => group.Trim()).Where(group => group.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             id.Value = book.Id.ToString();
+            using var prior = connection.CreateCommand(); prior.Transaction = transaction;
+            prior.CommandText = "SELECT document FROM books WHERE id=$id";
+            prior.Parameters.AddWithValue("$id", book.Id.ToString());
+            if (prior.ExecuteScalar() is string oldText)
+            {
+                var oldBook = JsonSerializer.Deserialize<Book>(oldText, Json)!;
+                var candidate = Clone(book); candidate.UpdatedAt = oldBook.UpdatedAt;
+                if (JsonSerializer.Serialize(oldBook, Json) == JsonSerializer.Serialize(candidate, Json))
+                { book.UpdatedAt = oldBook.UpdatedAt; continue; }
+            }
+            else if (book.Goodreads == null && book.Calibre == null) book.DateAdded ??= DateOnly.FromDateTime(DateTime.Today);
+            book.UpdatedAt = DateTimeOffset.Now;
             document.Value = JsonSerializer.Serialize(book, Json);
             command.ExecuteNonQuery();
         }
@@ -210,6 +226,10 @@ public sealed class LibraryStore : IDisposable
             delete.CommandText = "DELETE FROM books WHERE id=$id";
             delete.Parameters.AddWithValue("$id", other.Id.ToString());
             delete.ExecuteNonQuery();
+            using var moveHistory = connection.CreateCommand(); moveHistory.Transaction = transaction;
+            moveHistory.CommandText = "UPDATE book_changes SET book_id=$keep WHERE book_id=$other";
+            moveHistory.Parameters.AddWithValue("$keep", survivor.Id.ToString()); moveHistory.Parameters.AddWithValue("$other", other.Id.ToString());
+            moveHistory.ExecuteNonQuery();
             transaction.Commit();
             AutomaticBackup();
         }
@@ -425,7 +445,9 @@ public sealed class LibraryStore : IDisposable
     {
         lock (gate)
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json) : null;
+            if (!File.Exists(path)) return null;
+            var bibliography = JsonSerializer.Deserialize<EpubBibliography>(File.ReadAllText(path), Json);
+            return bibliography == null ? null : bibliography with { Entries = bibliography.Entries.Select(citation => citation with { EvidenceSource = bibliography.SourceSha256 }).ToArray() };
         }
     }
 
@@ -446,11 +468,21 @@ public sealed class LibraryStore : IDisposable
             if (!Books().Any(book => book.Id == bookId))
                 throw new InvalidOperationException("Save the book before attaching an extracted bibliography.");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var before = File.Exists(path) ? File.ReadAllText(path) : null;
+            var after = JsonSerializer.Serialize(bibliography, Json);
             var temporary = path + ".tmp";
+            var replaced = false;
             try
             {
-                File.WriteAllText(temporary, JsonSerializer.Serialize(bibliography, Json));
+                File.WriteAllText(temporary, after);
                 File.Move(temporary, path, true);
+                replaced = true;
+                RecordAttachmentChange(bookId, Path.GetFileName(path), before, after);
+            }
+            catch
+            {
+                if (replaced) { if (before == null) File.Delete(path); else File.WriteAllText(path, before); }
+                throw;
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
             AutomaticBackup();
@@ -486,6 +518,7 @@ public sealed class LibraryStore : IDisposable
             else File.WriteAllText(Path.Combine(revisions, "original-paste.md"), text, new UTF8Encoding(false));
             var temp = path + ".tmp";
             var addedSources = new List<string>();
+            var replaced = false;
             try
             {
                 File.WriteAllText(temp, text, new UTF8Encoding(false));
@@ -503,10 +536,14 @@ public sealed class LibraryStore : IDisposable
                     input.CopyTo(copy);
                 }
                 File.Move(temp, path, true);
+                replaced = true;
+                RecordAttachmentChange(bookId, "bibliography.md", previous.Hash == null ? null : previous.Text, text,
+                    addedSources.Select(source => Path.GetRelativePath(Profile, source)).ToArray());
             }
             catch
             {
                 foreach (var added in addedSources) File.Delete(added);
+                if (replaced) { if (previous.Hash == null) File.Delete(path); else File.WriteAllText(path, previous.Text, new UTF8Encoding(false)); }
                 throw;
             }
             finally { File.Delete(temp); }
@@ -638,7 +675,7 @@ public sealed class LibraryStore : IDisposable
         check.CommandText = "PRAGMA quick_check";
         if (check.ExecuteScalar() as string != "ok") throw new InvalidDataException("Backup database integrity check failed.");
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) != 1) throw new InvalidDataException("Unsupported database version.");
+        if (Convert.ToInt32(check.ExecuteScalar()) is not (1 or 2)) throw new InvalidDataException("Unsupported database version.");
         var books = ReadBooks(connection);
         return new BackupPreview(archivePath, manifest.Created, books.Count, manifest.Files.Count);
     }
@@ -664,8 +701,12 @@ public sealed class LibraryStore : IDisposable
                 _ = ExtractAndValidate(archivePath, staging);
                 Backup("pre-restore");
                 Directory.Move(Profile, rollback);
-                try { Directory.Move(staging, Profile); }
-                catch { Directory.Move(rollback, Profile); throw; }
+                try { Directory.Move(staging, Profile); EnsureSchema(); }
+                catch
+                {
+                    if (Directory.Exists(Profile)) Directory.Move(Profile, staging);
+                    Directory.Move(rollback, Profile); throw;
+                }
             }
             finally
             {
