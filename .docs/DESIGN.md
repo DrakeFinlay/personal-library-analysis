@@ -512,7 +512,11 @@ Retain the original EPUB by hash and record replacements in book change history;
 reject stale previews if the file or current EPUB bibliography changed. Personal
 Markdown and online bibliographies remain separate.
 
-The EPUB reader extracts dedicated bibliography sections and preserves original
+The EPUB reader recognizes dedicated and combined bibliography/recommended,
+suggested or further-reading headings, including line breaks. Publication/reprint
+years before an italicized title are separate from author names. Failure to
+extract a section is not a claim that the EPUB contains no bibliography.
+The reader extracts bibliography sections and preserves original
 citation text, grouping, and source location in a separate local record. A searchable
 browser offers possible matches by title and author. It was evaluated against the
 complete Dominion bibliography. Photo OCR uses the installed Windows recognizer

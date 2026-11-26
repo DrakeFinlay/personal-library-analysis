@@ -955,6 +955,24 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   biblical passage identities, comprehensive author-date support, automatic
   cross-source short-form resolution, and one-click unmerge remain follow-ups.
 
+### Combined EPUB bibliography headings (November 25, 2026)
+
+- Fixed recognition of combined Bibliography and Recommended/Suggested/Further
+  Reading headings, including embedded line breaks. Existing structural checks
+  still exclude table-of-contents links and navigation. Publication/reprint years
+  immediately before italicized titles no longer contaminate the author field.
+- Failure wording now states that automatic extraction failed rather than implying
+  the book has no bibliography. Re-analysis and explicit preview/save remain the
+  update workflow; no saved personal source was automatically replaced.
+- Read-only inspection of Bearing False Witness found its dedicated section under
+  Bibliography and Recommended Reading in text/part0018.html. The fixed reader
+  extracted 421 entries with zero unreadable documents from that EPUB. Synthetic
+  regression checks cover the combined line-break heading, navigation exclusion,
+  publication/reprint author cleanup and intact evidence. All 289 checks passed
+  and the Release build passed without warnings/errors.
+- README, design and [bibliography usage](BIBLIOGRAPHIES.md) explain re-analysis
+  and extraction limitations. Other unsupported publisher layouts remain possible.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack

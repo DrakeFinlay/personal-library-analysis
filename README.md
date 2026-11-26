@@ -108,6 +108,10 @@ records the bibliography in Change history. **Browse EPUB citations** opens
 search, sections, original citation text, and possible matches in My Books.
 Your Markdown notes and online bibliography are preserved separately.
 
+EPUB analysis also recognizes combined **Bibliography and Recommended Reading**
+headings. Re-analyze an edition missed by an earlier build, then review and save
+the extracted preview.
+
 In **Bibliographies**, use **Import bibliography photos…** to scan page images
 offline. Selecting photos starts automatic orientation detection, page/text-area
 selection, straightening and recognition for the whole batch. **Adjust photo

@@ -43,6 +43,19 @@ internal static class EpubImportChecks
         reject(() => store.PreviewEpubBibliography(book.Id, empty), "EPUB without a dedicated bibliography reports failure");
         check(store.Changes(book.Id).Count == count && store.ReadEpubBibliography(book.Id)!.Entries.Single().Title == "Replacement fictional work",
             "Unsuccessful analysis preserves the saved bibliography and audit history");
+        var combined = Path.Combine(workspace, "combined-reading-heading.epub");
+        using (var zip = ZipFile.Open(combined, ZipArchiveMode.Create))
+        {
+            using (var toc = new StreamWriter(zip.CreateEntry("toc.xhtml").Open()))
+                toc.Write("<html><body><nav><p><a href='works.xhtml'>Bibliography and Recommended Reading</a></p></nav></body></html>");
+            using var writer = new StreamWriter(zip.CreateEntry("works.xhtml").Open());
+            writer.Write("<html><body><p class='toc-title'>Bibliography and<br/>Recommended Reading</p><p class='bib'>Writer, Alice. 2020. <i>A Fictional Coast.</i> Town: Press.</p><p class='bib'>Reader, Bob. [1900] 2021. <i>Another Fictional Coast.</i> Town: Press.</p></body></html>");
+        }
+        var discovered = EpubBibliographyReader.Read(combined);
+        check(discovered.Entries.Length == 2 && discovered.Entries[0].Title == "A Fictional Coast." && discovered.Entries[0].Author == "Writer, Alice" && discovered.Entries[1].Author == "Reader, Bob",
+            "Combined bibliography/reading headings with line breaks are discovered and publication/reprint years stay out of author names");
+        check(discovered.Entries.All(entry => entry.ArchiveEntry == "works.xhtml" && entry.Text.Contains("Town: Press")),
+            "Combined-heading extraction ignores navigation entries and preserves complete publication evidence");
     }
 
     private static void Write(string path, string title)

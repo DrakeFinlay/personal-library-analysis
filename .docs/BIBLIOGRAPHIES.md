@@ -28,14 +28,23 @@ profile. If either the EPUB or saved bibliography changes after analysis, saving
 is rejected: analyze again to review the current version.
 
 Extraction recognizes dedicated bibliography/reference headings, including
-**Bibliography of Works Cited**, and retains complete citation text even when
+**Bibliography of Works Cited** and combined **Bibliography and Recommended
+Reading** headings (also Suggested/Further Reading), including headings split by
+line breaks. Publication/reprint years before an italicized title stay out of the
+author field. Extraction retains complete citation text even when
 the title or author cannot be recognized. It does not scan arbitrary endnotes,
 unlock encrypted content, or guarantee every publisher's layout. A file without
-a recognized bibliography reports an error and preserves existing data. The
+an extractable section reports that automatic extraction failed; this does not
+establish that the book has no bibliography. Existing saved data is preserved. The
 preview is read-only; use personal bibliography Markdown for manual corrections
 or unsupported layouts. Local matches are suggestions, not confirmed links.
 Unusually large editions are rejected and oversized or malformed individual
 documents are reported as unreadable; check that count before saving.
+
+If an earlier attempt missed a combined bibliography/reading-list section, choose
+the EPUB again and **Analyze bibliography** with the updated app. Review the new
+preview and use **Back up and save bibliography** to apply it. This update does
+not automatically replace previously saved personal bibliographies.
 
 ## Import photos of bibliographies or chapter notes
 
