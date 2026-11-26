@@ -8,9 +8,9 @@ public sealed partial class LibraryStore
     {
         lock (gate)
         {
-            library ??= Books(); var text = Bibliography(id).Text;
-            return ReviewedCitations(id, (ReadEpubBibliography(id)?.Entries ?? []).Concat(ReadOnlineBibliography(id)?.Entries ?? [])
-                .Concat(BibliographyMatches.ReadText(text, library).Select(citation => citation with { EvidenceSource = Hash(System.Text.Encoding.UTF8.GetBytes(text)) })));
+            library ??= Books(); var text = Bibliography(id).Text; var identities = CitationIdentities().Entries;
+            return ReviewedCitations(id, CitationProcessing.Process((ReadEpubBibliography(id)?.Entries ?? []).Concat(ReadOnlineBibliography(id)?.Entries ?? []), identities)
+                .Concat(BibliographyMatches.ReadText(text, library, identities, Hash(System.Text.Encoding.UTF8.GetBytes(text)))));
         }
     }
     public BibliographyGraph ReadBibliographyGraph(bool originalTextOnly = false)

@@ -439,6 +439,22 @@ Removing a Personal Library record suppresses its source ID during later refresh
 
 ## 8. Bibliography documents and citation relationships
 
+Citation interpretation is a distinct Core layer before library matching. It
+preserves source blocks and produces reference-specific work identities, printed
+note numbers, locators, volume/edition/contributor fields and resolution reasons.
+Supported mixed full references are separated. Short forms resolve against a
+unique earlier section reference; Ibid requires an unambiguous immediately prior
+numbered note. Missing notes, numbering resets and chapter boundaries prevent
+guessed links. Unresolved interpretations remain reviewable and do not create
+graph edges, cited-library entries or recommendation evidence.
+
+Inferred work keys exist independently of My Books; normalized spacing is tolerated
+without rewriting raw OCR. Reviewed canonical identities and explicit alias merges
+live separately in profile metadata, with stable reviewed IDs, optimistic conflict
+checks, source evidence checks, source-book history and backup coverage. Review can
+exclude an interpretation while retaining its evidence. No automatic library book
+creation occurs. Identity and original-author attribution remain separate decisions.
+
 Graph nodes use green for In My Books, blue for absent works, and amber for
 ambiguous library matches, with a legend and text badges. Each arrow runs from
 source bibliography to listed work, with incoming/outgoing details stating this.

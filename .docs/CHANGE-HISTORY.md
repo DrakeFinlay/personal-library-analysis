@@ -13,6 +13,10 @@ New retained bibliography images are recorded even if the text stays the same.
 Saving a citation attribution/date review also records the review metadata before
 and after, updates the source book's change time, and appears in Recently changed.
 Reviews are included in profile backups and remain separate from imported evidence.
+Work-identity corrections, explicit identity merges and excluded interpretations
+also record the shared identity map's before/after values on the source book.
+Other bibliographies use that map when reopened; their raw source text and book
+records are not rewritten. Profile backups restore the map with the evidence.
 An unchanged Save does not create an event or move the book into Recently changed.
 Unsaved typing is not recorded as a book change.
 

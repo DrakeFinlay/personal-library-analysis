@@ -106,7 +106,7 @@ public sealed class BibliographyGraph
             var from = Local(source);
             foreach (var citation in citations[source.Id])
             {
-                if (string.IsNullOrWhiteSpace(citation.Title)) { textOnly++; continue; }
+                if (string.IsNullOrWhiteSpace(citation.Title) || citation.Interpretation is { CanConnect: false }) { textOnly++; continue; }
                 var title = Key(citation.Title); var shortTitle = Key(citation.Title.Split(':', 2)[0]);
                 if (title.Length == 0) { textOnly++; continue; }
                 var candidates = (index.GetValueOrDefault(title) ?? []).Concat(index.GetValueOrDefault(shortTitle) ?? []).DistinctBy(book => book.Id).ToArray();
@@ -116,14 +116,18 @@ public sealed class BibliographyGraph
                 else
                 {
                     var author = string.Join(' ', CitedRecommendations.TextKey(citation.Author).Split(' ', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal));
-                    target = "cited:" + title + "|" + author + (author.Length == 0 ? "|source:" + source.Id : "");
-                    var identity = matches.Length > 1 ? "Ambiguous My Books match" : author.Length == 0 ? "Author missing · grouped within this source only" : "Outside My Books · inferred grouping";
+                    var canonical = citation.Interpretation?.CanonicalWorkKey is { Length: > 0 } canonicalKey ? canonicalKey : citation.Interpretation?.WorkKey;
+                    target = "cited:" + (canonical is { Length: > 0 } workKey && author.Length > 0 ? workKey : title + "|" + author)
+                        + (author.Length == 0 ? "|source:" + source.Id : "");
+                    var identity = matches.Length > 1 ? "Ambiguous My Books match" : author.Length == 0 ? "Author missing · grouped within this source only"
+                        : citation.Interpretation?.IdentityReviewed == true ? "Outside My Books · reviewed work identity" : "Outside My Books · inferred grouping";
                     nodes.TryAdd(target, new(target, citation.Title, citation.Author, null, false, identity));
                 }
                 if (from == target) continue;
                 var pair = (from, target);
                 if (!edges.TryGetValue(pair, out var evidence)) edges[pair] = evidence = new();
-                evidence.TryAdd(CitedRecommendations.TextKey(citation.Text) + "|" + System.Text.Json.JsonSerializer.Serialize(citation.Attribution ?? CitationProvenance.Infer(citation.Section)), new(source, citation));
+                evidence.TryAdd(CitedRecommendations.TextKey(citation.Text) + "|" + citation.Interpretation?.NoteNumber + "|" + citation.Interpretation?.Reference
+                    + "|" + System.Text.Json.JsonSerializer.Serialize(citation.Attribution ?? CitationProvenance.Infer(citation.Section)), new(source, citation));
             }
         }
         return new(nodes, edges.Select(pair => new BibliographyConnection(pair.Key.Source, pair.Key.Target, pair.Value.Values.ToArray())).ToArray(),

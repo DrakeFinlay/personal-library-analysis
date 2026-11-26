@@ -56,7 +56,7 @@ internal sealed class BibliographyTextWindow : Window
         var review = Ui.Button("Review citations / local matches", () =>
         {
             var library = store.Books();
-            var entries = BibliographyMatches.ReadText(text.Text, library);
+            var entries = BibliographyMatches.ReadText(text.Text, library, store.CitationIdentities().Entries);
             if (entries.Length == 0)
                 throw new InvalidOperationException("No identifiable citations yet. The complete text can still be saved. Correct OCR errors and separate references with blank lines, then review again.");
             var preview = new EpubBibliography("Editable bibliography text", "",
@@ -71,7 +71,14 @@ internal sealed class BibliographyTextWindow : Window
             DialogResult = true;
         }, true);
         var close = Ui.Button("Close", Close);
+        var processed = Ui.Button("Review saved interpretations…", () =>
+        {
+            var document = new EpubBibliography("All saved source evidence", "", [], store.ReadCitationEvidence(book.Id), 0);
+            new EpubBibliographyWindow(store, book, document, showAlternate: false, processedView: true) { Owner = this }.ShowDialog();
+        });
+        processed.Visibility = saved.Hash != null ? Visibility.Visible : Visibility.Collapsed;
         foreach (var button in new[] { edit, scan, adjust, cancelScan, review, save, close }) actions.Children.Add(button);
+        actions.Children.Add(processed);
         edit.Click += (_, _) => SetEditing(true);
 
         scan.Click += async (_, _) => await Scan(false);

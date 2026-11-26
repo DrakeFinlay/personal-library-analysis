@@ -904,6 +904,57 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
   processing time per photo; no downloaded model, cloud service or new dependency
   was introduced. Existing saved personal bibliographies were not reprocessed.
 
+### Citation interpretation and canonical work review (November 25, 2026)
+
+- Added a Core interpretation layer between raw source evidence and My Books
+  matching. Supported mixed notes split into individual full publication references;
+  translation/discussion cues no longer become authors or composite titles. Printed
+  note numbers, individual reference wording, locators, volumes, edition years and
+  translation contributors remain separate from the full preserved note.
+- Short author/title references resolve against a unique earlier full reference
+  within the same section. Ibid requires one identified reference in the immediately
+  preceding numbered note. Missing numbers, ambiguous notes/editions, chapter
+  changes and numbering resets leave references unresolved. Repeated editions do
+  not supply an arbitrary edition year. Unsupported blocks remain in a review queue.
+- Deterministic work keys are independent of My Books, tolerate spacing/case/
+  punctuation and normal/inverted contributor order, and keep different full
+  contributor names separate. Work identity review corrects canonical fields,
+  explicitly merges aliases across bibliographies, or excludes false interpretations
+  without rewriting evidence or adding library books. Reviewed IDs survive display
+  corrections; unresolved passage decisions use source-revision evidence fingerprints.
+- Shared profile identity metadata uses optimistic conflicts and source checks,
+  atomic file replacement with audit rollback, source-book history/timestamps and
+  backup/restore coverage. Exact legacy attribution reviews and older citation
+  recommendation preference keys remain usable when evidence still matches.
+- Graphs, cited-library lists and citation recommendations consume processed
+  evidence and exclude unresolved interpretations. Distinct citing-book counts
+  remain distinct from evidence passages. Parsed reference/note contexts preserve
+  multiple occurrences without counting whole-note rows as extra work citations.
+- Added Bibliographies → Review processed citations, interpretation status/reasons,
+  note/locator/edition details, unresolved filtering and optional complete-note rows.
+  Review work identity can use a possible library record's title/author, merge into
+  an existing reviewed identity, or exclude an interpretation. Reader/graph views
+  refresh after a review; other open snapshots refresh when reopened.
+- Synthetic checks cover mixed references, inverted names, contributor/volume/
+  locator fields, ambiguous short titles and Ibid, missing notes, chapter resets,
+  multiple editions, spacing variants, aliases/merges, excluded interpretations,
+  stale source/review rejection, legacy compatibility and backup restoration.
+  All 279 checks passed; Release build passed without warnings/errors and the
+  local Windows package was rebuilt. An isolated TEST PROFILE verified the source
+  picker, interpretation details, unresolved queue, choosing an existing reviewed
+  identity and saving, with the unresolved count immediately decreasing. UI review
+  also led to clearer reviewed/inferred wording and optional full-note rows.
+- Read-only evaluation of the user's example, with and without simulated library
+  records, independently identified Klauck, Schneemelcher, Meyer and Ehrman,
+  resolved the explicit Schneemelcher short title, and retained uncertain short
+  references/missing-note Ibid cases without graph edges. Personal source documents
+  were not rewritten. Diagnostics/test profiles stayed in ignored .local/.
+- Added [CITATION-PROCESSING.md](CITATION-PROCESSING.md) and updated README,
+  bibliography, design and history guides. This remains a conservative pattern
+  interpreter, not a universal style parser. Generic spelling repair, manuscript/
+  biblical passage identities, comprehensive author-date support, automatic
+  cross-source short-form resolution, and one-click unmerge remain follow-ups.
+
 ## Deliberate limitations and follow-ups
 
 - Stage B broader catalog coverage, estimated lifetime words and book-stack
@@ -912,7 +963,7 @@ A Windows GitHub Actions build/check workflow is included but has not run remote
 - Description and review interpretation, embeddings, and broader catalog
   discovery remain later recommendation work. Direct PDF extraction, automatic
   external Markdown watching, visual browsing modes beyond the table and cover
-  grid, accepted citation identities/part grouping, and Anki integration remain later stages.
+  grid, broader citation identifiers/part grouping, and Anki integration remain later stages.
 - Initial backups contain complete profile copies. The retention policy keeps 14
   daily and 4 weekly archives; manual/pre-restore archives are retained. Large-source
   deduplication is deferred until document import makes it useful.

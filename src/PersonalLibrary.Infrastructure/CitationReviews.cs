@@ -20,8 +20,19 @@ public sealed partial class LibraryStore
     public EpubCitation[] ReviewedCitations(Guid id, IEnumerable<EpubCitation> citations)
     {
         var reviews = CitationReviews(id).Entries;
-        return citations.Select(citation => reviews.TryGetValue(CitationProvenance.Fingerprint(citation), out var attribution)
-            ? citation with { Attribution = attribution } : citation).ToArray();
+        return citations.Select(citation =>
+        {
+            if (reviews.TryGetValue(CitationProvenance.Fingerprint(citation), out var attribution)) return citation with { Attribution = attribution };
+            // Preserve legacy reviews only for the exact same source revision,
+            // note wording and extracted title/author. A newly split or changed
+            // interpretation must not inherit an unrelated review.
+            if (citation.Interpretation is { } info)
+            {
+                var legacy = citation with { Title = info.ExtractedTitle, Author = info.ExtractedAuthor, Interpretation = null };
+                if (reviews.TryGetValue(CitationProvenance.Fingerprint(legacy), out attribution)) return citation with { Attribution = attribution };
+            }
+            return citation;
+        }).ToArray();
     }
 
     public void SaveCitationReview(Guid id, EpubCitation citation, CitationAttribution attribution, string? expectedHash)

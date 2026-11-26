@@ -135,6 +135,15 @@ internal sealed class BibliographyConnectionsWindow : Window
             Text(detail, "Saved evidence · work identity inferred separately from attribution", 13);
             foreach (var evidence in edge.Evidence)
             {
+                if (evidence.Citation.Interpretation is { } interpretation)
+                {
+                    Text(detail, CitationProcessing.Label(interpretation), 14);
+                    Text(detail, $"Note: {interpretation.NoteNumber?.ToString() ?? "not supplied"} · Locator: {interpretation.Locator} · Volume: {interpretation.Volume}\n" + interpretation.Reason, 12);
+                    detail.Children.Add(Ui.Button("Review work identity…", async () =>
+                    {
+                        if (new CitationIdentityWindow(store, evidence.Source, evidence.Citation) { Owner = this }.ShowDialog() == true) await LoadGraph();
+                    }));
+                }
                 var target = graph.Nodes[edge.Target].BookId is { } targetId ? store.FindBook(targetId) : null;
                 var assessment = CitationProvenance.Assess(evidence.Source, evidence.Citation, target);
                 Text(detail, CitationProvenance.Label(assessment.Attribution), 14);

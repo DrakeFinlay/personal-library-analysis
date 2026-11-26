@@ -124,7 +124,7 @@ network of shared citations and their connecting source books. Click a shared
 work in the left list to immediately update the graph; expand branches, trace paths, zoom, and inspect
 the original evidence behind each arrow. **Repeatedly cited works** ranks titles
 by distinct citing books and evidence passages across your saved bibliography
-set, including cited works outside My Books. Identities remain inferred; ambiguous
+set, including cited works outside My Books. Identities are inferred unless reviewed; ambiguous
 matches and separate parts/volumes are not silently merged.
 
 Graph nodes use green for **In My Books**, blue for **Not in My Books**, and
@@ -134,6 +134,13 @@ editorial material or further reading and record original versus edition dates.
 **Reviewed original-text citations only** filters the graph and statistics to
 manually reviewed references without detected date conflicts. See the
 [attribution review steps](.docs/BIBLIOGRAPHIES.md#review-attribution-and-publication-dates).
+
+**Bibliographies → Review processed citations…** opens the interpretation layer:
+separate references within notes, resolved short titles/`Ibid.`, locators and
+edition details, unresolved references, and possible library matches. Use
+**Review work identity…** to correct an identity, merge it into a reviewed work,
+or exclude a false interpretation while preserving the evidence. See the
+[citation processing guide](.docs/CITATION-PROCESSING.md) for the workflow and limits.
 
 Add a book, enter its edition/page count/ownership, and save. Open Reading & history
 to start it, record page/percentage progress, finish, reread, or mark it reference-only.

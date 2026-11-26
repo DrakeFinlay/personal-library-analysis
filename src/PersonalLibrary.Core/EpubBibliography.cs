@@ -1,7 +1,8 @@
 namespace PersonalLibrary.Core;
 
 public sealed record EpubCitation(int Number, string Section, string Text, string Title,
-    string Author, string ArchiveEntry, string? Anchor, CitationAttribution? Attribution = null, string EvidenceSource = "");
+    string Author, string ArchiveEntry, string? Anchor, CitationAttribution? Attribution = null, string EvidenceSource = "",
+    CitationInterpretation? Interpretation = null);
 
 public sealed record OnlineBibliographySource(string Provider, string Title, string Author, string Date,
     string ItemUrl, string FileUrl, DateTimeOffset RetrievedAt);

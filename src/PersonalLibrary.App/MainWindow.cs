@@ -603,6 +603,9 @@ public sealed class MainWindow : Window
             .Where(pick =>
             {
                 var preference = store.Setting(CitationPreferenceKey(pick), "");
+                if (preference.Length == 0)
+                    preference = pick.Sources.Select(source => store.Setting(CitationPreferenceKey(CitedRecommendations.LegacyPreferenceKey(source.Citation)), ""))
+                        .FirstOrDefault(value => value.Length > 0) ?? "";
                 return preference != "dismissed" &&
                     !(long.TryParse(preference, out var until) && until > now.ToUnixTimeSeconds()) &&
                     authors.Add(pick.Author);
@@ -643,14 +646,13 @@ public sealed class MainWindow : Window
             actions.Children.Add(Ui.Button("Not interested", () => SaveCitationPreference(pick, dismiss: true)));
         }
 
-        IEnumerable<EpubCitation> ReadCitations(Guid id) =>
-            (store.ReadEpubBibliography(id)?.Entries ?? []).Concat(store.ReadOnlineBibliography(id)?.Entries ?? [])
-                .Concat(CitedRecommendations.ReadText(store.Bibliography(id).Text))
-                .Concat(NoteReferences.Read(store.Bibliography(id).Text));
+        IEnumerable<EpubCitation> ReadCitations(Guid id) => store.ReadCitationEvidence(id);
     }
 
     private static string CitationPreferenceKey(CitedRecommendation pick) =>
-        "citation-recommendation:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pick.Key)));
+        CitationPreferenceKey(pick.Key);
+    private static string CitationPreferenceKey(string key) =>
+        "citation-recommendation:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
 
     private void SaveCitationPreference(CitedRecommendation pick, bool dismiss)
     {
@@ -850,6 +852,12 @@ public sealed class MainWindow : Window
                 RefreshPage();
         });
         actions.Children.Add(photos);
+        actions.Children.Add(Ui.Button("Review processed citations…", () =>
+        {
+            if (ChooseBibliographyBook("Review processed citations") is not { } book) return;
+            var document = new EpubBibliography("All saved source evidence", "", [], store.ReadCitationEvidence(book.Id), 0);
+            new EpubBibliographyWindow(store, book, document, showAlternate: false, processedView: true) { Owner = this }.ShowDialog();
+        }));
         actions.Children.Add(Ui.Button("Import bibliography from EPUB…", () =>
         {
             if (ChooseBibliographyBook("Import bibliography from EPUB") is not { } book) return;

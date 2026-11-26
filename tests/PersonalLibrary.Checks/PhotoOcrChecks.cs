@@ -50,10 +50,10 @@ internal static class PhotoOcrChecks
             "2 Writer, The Fictional Coast, 42. This is commentary and an abbreviated reference.\n\n" +
             "A note whose number was lost by recognition must still remain reviewable.";
         var candidates = NoteReferences.Read(notes).ToArray();
-        check(candidates.Count(c => c.Title.Length > 0) == 2 && candidates.Any(c => c.Title == "Another Book (and its Notes)"),
+        check(candidates.Count(c => c.Interpretation?.Resolution == CitationResolution.FullReference) == 2 && candidates.Any(c => c.Title == "Another Book (and its Notes)"),
             "Mixed notes can contain several full publication citations and parenthesized titles");
-        check(candidates.Count(c => c.Title.Length == 0) == 3 && candidates.All(c => c.ArchiveEntry.Contains("sample.jpg")) &&
-            candidates.Where(c => c.Title.Length > 0).All(c => c.Text.StartsWith("1 See")),
+        check(candidates.Count(c => c.Interpretation?.Resolution == CitationResolution.FullNote) == 3 && candidates.All(c => c.ArchiveEntry.Contains("sample.jpg")) &&
+            candidates.Where(c => c.Interpretation?.Resolution == CitationResolution.FullReference).All(c => c.Text.StartsWith("1 See")),
             "Complete notes and source-photo labels survive extraction, including abbreviated and unnumbered unresolved notes");
         var known = new Book { Title = "The Fictional Coast", Author = "A. Writer" };
         var wrong = new Book { Title = known.Title, Author = "Other Person" };

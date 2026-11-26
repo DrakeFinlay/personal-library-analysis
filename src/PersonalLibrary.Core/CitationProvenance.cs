@@ -16,8 +16,9 @@ public sealed record CitationAssessment(CitationAttribution Attribution, int? So
 
 public static class CitationProvenance
 {
-    public static string Fingerprint(EpubCitation citation) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-        JsonSerializer.Serialize(new[] { citation.EvidenceSource, citation.Section, citation.Text, citation.Title, citation.Author, citation.ArchiveEntry, citation.Anchor ?? "" }))));
+    public static string Fingerprint(EpubCitation citation) => citation.Interpretation?.EvidenceFingerprint is { Length: > 0 } fingerprint ? fingerprint : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+        JsonSerializer.Serialize(new[] { citation.EvidenceSource, citation.Section, citation.Text, citation.Interpretation?.ExtractedTitle ?? citation.Title,
+            citation.Interpretation?.ExtractedAuthor ?? citation.Author, citation.ArchiveEntry, citation.Anchor ?? "" }))));
 
     public static string Label(CitationAttribution attribution) => (attribution.Role switch
     {
@@ -30,7 +31,7 @@ public static class CitationProvenance
         var attribution = citation.Attribution ?? Infer(citation.Section);
         var original = attribution.CitedOriginalYear ?? target?.OriginalYear;
         var years = Regex.Matches(citation.Text, @"\b(?:1[4-9]\d{2}|20\d{2})\b").Select(match => int.Parse(match.Value, System.Globalization.CultureInfo.InvariantCulture)).Distinct().ToArray();
-        var reference = attribution.CitedEditionYear ?? (years.Length == 1 ? years[0] : (int?)null);
+        var reference = attribution.CitedEditionYear ?? citation.Interpretation?.EditionYear ?? (years.Length == 1 ? years[0] : (int?)null);
         var contextYear = attribution.Role is CitationRole.Editorial or CitationRole.FurtherReading ? attribution.SourceEditionYear : source.OriginalYear;
         var warning = "";
         if (original is { } cited && contextYear is { } sourceYear && cited > sourceYear)

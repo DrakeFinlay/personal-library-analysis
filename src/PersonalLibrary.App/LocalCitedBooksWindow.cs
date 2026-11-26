@@ -57,8 +57,7 @@ internal sealed class LocalCitedBooksWindow : Window
                 {
                     var library = store.Books();
                     return BibliographyMatches.All(library, id =>
-                        (store.ReadEpubBibliography(id)?.Entries ?? []).Concat(store.ReadOnlineBibliography(id)?.Entries ?? [])
-                            .Concat(BibliographyMatches.ReadText(store.Bibliography(id).Text, library))).Select(item => new Row(item)).ToArray();
+                        store.ReadCitationEvidence(id, library)).Select(item => new Row(item)).ToArray();
                 });
                 Filter();
             }

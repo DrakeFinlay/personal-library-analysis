@@ -124,6 +124,13 @@ evidence; ambiguous records remain possible matches rather than accepted links.
 
 ## Explore citation chains and cross connections
 
+Saved evidence now passes through the [citation interpretation layer](CITATION-PROCESSING.md)
+before creating connections. **Review processed citations…** shows identified
+works and unresolved interpretations. Short references and `Ibid.` need an
+unambiguous earlier context; unresolved references and excluded interpretations
+do not create graph edges. **Review work identity…** corrects/merges the work
+independently of original-author attribution and leaves source text unchanged.
+
 Open **Bibliographies → Connections & citation stats**. This reads all saved EPUB,
 online, and pasted/scanned bibliographies locally. It includes cited works outside
 My Books. The graph is limited to works cited by at least two source books and
@@ -240,7 +247,8 @@ its graph. Single-source rows cannot open a visualization.
 
 - **Citing books** counts distinct source-book records, regardless of rating,
   ownership or reading status. Excluded books do not contribute.
-- **Evidence passages** counts distinct citation text and attribution context
+- **Evidence passages** counts distinct citation text, interpreted reference/note,
+  and attribution context
   within each source. Duplicate copies with the same context across EPUB/online/text
   count once for that source–target connection. Different attribution contexts
   remain separate evidence without adding another citing book.
@@ -255,5 +263,5 @@ including inferred external works. All-reference counts include editorial and
 further-reading material and are not proof of influence on the original author.
 They do not measure worldwide citations or count indirect/transitive citations.
 Different author/title variants can remain separate until the source is corrected
-or a future identity-review workflow reconciles them. The original evidence stays
+or **Review work identity…** explicitly reconciles them. The original evidence stays
 available for checking the grouping.
